@@ -4,9 +4,170 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.zsq</groupId>
+    <groupId>io.github.hahaha-zsq</groupId>
+    <version>0.0.1</version>
     <artifactId>winter-netty-spring-boot-starter</artifactId>
-    <version>1.0-SNAPSHOT</version>
+
+    <packaging>jar</packaging>
+
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>netty</description>
+    <url>https://github.com/hahaha-zsq/winter-netty-spring-boot-starter</url>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spring.boot.version>2.6.11</spring.boot.version>
+        <lombok.version>1.18.22</lombok.version>
+        <hutool.version>5.8.25</hutool.version>
+        <pinyin4j.version>2.5.1</pinyin4j.version>
+        <netty.version>4.1.107.Final</netty.version>
+    </properties>
 
 
+    <dependencies>
+        <!-- Spring Boot Starter -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <version>${spring.boot.version}</version>
+        </dependency>
+
+        <!-- Spring Boot Configuration Processor -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <version>${spring.boot.version}</version>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+        </dependency>
+
+        <!-- Netty -->
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+            <version>${netty.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-json</artifactId>
+            <version>${hutool.version}</version>
+        </dependency>
+
+    </dependencies>
+
+
+
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>dadandiaoming</name>
+            <email>2595915122@qq.com</email>
+            <organization>Sonatype</organization>
+            <organizationUrl>https://www.sonatype.com</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/hahaha-zsq/winter-netty-spring-boot-starter.git</connection>
+        <developerConnection>scm:git:ssh://github.com/hahaha-zsq/winter-netty-spring-boot-starter.git</developerConnection>
+        <url>https://github.com/hahaha-zsq/winter-netty-spring-boot-starter</url>
+    </scm>
+
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2</url>
+        </repository>
+    </distributionManagement>
+
+
+
+    <build>
+        <plugins>
+            <!--    Maven插件发布    -->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.4.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <tokenAuth>true</tokenAuth>
+                    <autoPublish>false</autoPublish>
+                </configuration>
+            </plugin>
+
+
+            <!--            maven-source-plugin 是一个用于生成项目源代码的 Maven 插件，插件还可以用来将源代码作为附件附加到主 JAR 文件中。这通常是在发布项目的时候使用的，方便用户查看类的源代码-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.3.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--            maven-javadoc-plugin 将会生成项目的 JavaDoc 文档，并将其打包成一个 JAR 文件-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <configuration>
+                            <locale>zh_CN</locale>
+                            <encoding>UTF-8</encoding>
+                            <charset>UTF-8</charset>
+                            <doclint>none</doclint>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--            当执行 Maven 构建到达 verify 阶段时，maven-gpg-plugin 会使用 GPG 密钥对项目工件（如 JAR 文件）进行数字签名。这是为了保证工件的完整性和可追溯性，特别是在发布到远程仓库之前-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>1.6</version>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>
