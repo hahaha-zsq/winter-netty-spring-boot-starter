@@ -110,8 +110,10 @@
                 <version>0.4.0</version>
                 <extensions>true</extensions>
                 <configuration>
-                    <publishingServerId>central</publishingServerId>
+                    <!--需要是我们之前定义的server的id-->
+                    <publishingServerId>dadandiaoming-maven</publishingServerId>
                     <tokenAuth>true</tokenAuth>
+                    <!--需不需要自动发布，false就需要自己手动发布-->
                     <autoPublish>false</autoPublish>
                 </configuration>
             </plugin>
@@ -156,17 +158,27 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-gpg-plugin</artifactId>
                 <version>1.6</version>
-                <configuration>
-                    <skip>true</skip>
-                </configuration>
                 <executions>
                     <execution>
+                        <id>sign-artifacts</id>
                         <phase>verify</phase>
                         <goals>
                             <goal>sign</goal>
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <executable>gpg</executable>
+                    <gpgArguments>
+                        <arg>--batch</arg>
+                        <arg>--pinentry-mode</arg>
+                        <arg>loopback</arg>
+                        <arg>-u</arg>
+                        <arg>${gpg.keyname}</arg>
+                        <arg>--passphrase</arg>
+                        <arg>${gpg.passphrase}</arg>
+                    </gpgArguments>
+                </configuration>
             </plugin>
         </plugins>
     </build>
