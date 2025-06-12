@@ -9,13 +9,14 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * WebSocket自动配置类
- *
+ * <p>
  * 负责在Spring Boot启动时自动注册WebSocket相关的Bean，
  * 包括连接管理器、处理器、管道初始化器、服务器等。
  */
@@ -53,38 +54,55 @@ public class WebSocketAutoConfiguration {
 
         return executor;
     }
+
     /**
      * 创建WebSocket连接管理器Bean
-     *
+     * <p>
      * 用于管理所有WebSocket连接（如添加、移除、广播消息等）。
      */
-    @Bean
+    @Bean("webSocketChannelManager")
     @ConditionalOnMissingBean
     public WebSocketChannelManager webSocketChannelManager() {
         return new WebSocketChannelManager();
     }
-
+    /**
+     * 创建默认的消息业务处理服务Bean
+     * <p>
+     * 如果开发者没有自定义实现WebSocketMessageService接口，
+     * 则使用这个默认实现进行日志记录。
+     *
+     * @return DefaultWebSocketMessageServiceImpl 实例
+     */
+    @Bean("webSocketMessageService")
+    @DependsOn("webSocketChannelManager")
+    @ConditionalOnMissingBean
+    public WebSocketMessageService defaultWebSocketMessageService(WebSocketChannelManager webSocketChannelManager) {
+        return new DefaultWebSocketMessageServiceImpl(webSocketChannelManager);
+    }
     /**
      * 创建WebSocket处理器Bean
-     *
+     * <p>
      * 处理客户端发来的WebSocket消息，包含心跳、文本、私聊、广播等类型。
      * 增加了对Jackson ObjectMapper的注入，以统一使用项目中的JSON配置。
      *
-     * @param channelManager 管理WebSocket连接的组件
-     * @param messageService   消息业务处理服务
+     * @param webSocketChannelManager 管理WebSocket连接的组件
+     * @param webSocketMessageService 消息业务处理服务
+     * @param winterNettyTaskExecutor 线程池
      * @return WebSocketHandler 实例
      */
     @Bean
     @ConditionalOnMissingBean
+    @DependsOn("webSocketMessageService")
     public WebSocketHandler webSocketHandler(
-            WebSocketChannelManager channelManager,
-            WebSocketMessageService messageService) {
-        return new WebSocketHandler(channelManager, messageService);
+            WebSocketChannelManager webSocketChannelManager,
+            WebSocketMessageService webSocketMessageService,
+            ThreadPoolTaskExecutor winterNettyTaskExecutor) {
+        return new WebSocketHandler(webSocketChannelManager, webSocketMessageService,winterNettyTaskExecutor);
     }
 
     /**
      * 创建WebSocket管道初始化器Bean
-     *
+     * <p>
      * 初始化Netty ChannelPipeline，添加必要的协议处理器：
      * - HTTP编解码
      * - WebSocket握手与帧处理
@@ -105,7 +123,7 @@ public class WebSocketAutoConfiguration {
 
     /**
      * 创建Netty WebSocket服务器Bean
-     *
+     * <p>
      * 启动并运行Netty服务器，监听指定端口，处理WebSocket请求。
      *
      * @param properties         WebSocket配置属性
@@ -116,35 +134,24 @@ public class WebSocketAutoConfiguration {
     @ConditionalOnMissingBean
     public NettyWebSocketServer nettyWebSocketServer(
             WebSocketProperties properties,
-            WebSocketChannelInitializer channelInitializer,ThreadPoolTaskExecutor winterNettyTaskExecutor) {
-        return new NettyWebSocketServer(properties, channelInitializer,winterNettyTaskExecutor);
+            WebSocketChannelInitializer channelInitializer, ThreadPoolTaskExecutor winterNettyTaskExecutor) {
+        return new NettyWebSocketServer(properties, channelInitializer, winterNettyTaskExecutor);
     }
 
     /**
      * 创建WebSocket消息推送服务Bean
-     *
+     * <p>
      * 提供向指定用户或所有用户发送WebSocket消息的功能。
      *
-     * @param channelManager 管理WebSocket连接的组件
+     * @param webSocketChannelManager 管理WebSocket连接的组件
      * @return WebSocketPushService 实例
      */
     @Bean
     @ConditionalOnMissingBean
-    public WebSocketPushTemplate webSocketPushService(WebSocketChannelManager channelManager) {
-        return new WebSocketPushTemplate(channelManager);
+    @DependsOn("webSocketChannelManager")
+    public WebSocketPushTemplate webSocketPushService(WebSocketChannelManager webSocketChannelManager) {
+        return new WebSocketPushTemplate(webSocketChannelManager);
     }
 
-    /**
-     * 创建默认的消息业务处理服务Bean
-     *
-     * 如果开发者没有自定义实现WebSocketMessageService接口，
-     * 则使用这个默认实现进行日志记录。
-     *
-     * @return DefaultWebSocketMessageServiceImpl 实例
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    public WebSocketMessageService defaultWebSocketMessageService() {
-        return new DefaultWebSocketMessageServiceImpl();
-    }
+
 }

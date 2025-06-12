@@ -7,6 +7,7 @@ import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.ObjectUtils;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -48,7 +49,7 @@ public class WebSocketChannelManager {
         channels.remove(channel);
         // 清理用户映射关系
         String userId = channelUserMap.remove(channel.id());
-        if (userId != null) {
+        if (!ObjectUtils.isEmpty(userId)) {
             userChannelMap.remove(userId);
             log.info("用户 {} 断开连接: {}", userId, channel.id());
         }
@@ -61,7 +62,7 @@ public class WebSocketChannelManager {
     public void bindUser(String userId, Channel channel) {
         // 如果用户已经有连接，先关闭旧连接
         Channel oldChannel = userChannelMap.get(userId);
-        if (oldChannel != null && oldChannel.isActive()) {
+        if (!ObjectUtils.isEmpty(oldChannel) && oldChannel.isActive()) {
             log.info("用户 {} 重复登录，关闭旧连接: {}", userId, oldChannel.id());
             oldChannel.close();
         }
@@ -90,7 +91,7 @@ public class WebSocketChannelManager {
      */
     public boolean sendToUser(String userId, String message) {
         Channel channel = userChannelMap.get(userId);
-        if (channel != null && channel.isActive()) {
+        if (!ObjectUtils.isEmpty(channel) && channel.isActive()) {
             channel.writeAndFlush(new TextWebSocketFrame(message));
             return true;
         }
@@ -101,7 +102,7 @@ public class WebSocketChannelManager {
      * 向指定Channel发送消息
      */
     public boolean sendToChannel(Channel channel, String message) {
-        if (channel != null && channel.isActive()) {
+        if (!ObjectUtils.isEmpty(channel) && channel.isActive()) {
             channel.writeAndFlush(new TextWebSocketFrame(message));
             return true;
         }
@@ -116,18 +117,26 @@ public class WebSocketChannelManager {
         log.info("广播消息发送给 {} 个连接: {}", channels.size(), message);
     }
 
+
     /**
-     * 广播消息给所有连接（排除指定用户）
+     * 向所有活跃用户广播消息，但排除指定用户
+     *
+     * @param excludeUserId 需要排除的用户ID
+     * @param message       要广播的消息内容
      */
     public void broadcastExclude(String excludeUserId, String message) {
+        // 获取需要排除的用户的通道
         Channel excludeChannel = userChannelMap.get(excludeUserId);
-        for (Channel channel : channels) {
-            if (channel != excludeChannel && channel.isActive()) {
-                channel.writeAndFlush(new TextWebSocketFrame(message));
-            }
-        }
+
+        // 使用 Stream 流过滤并发送消息
+        channels.stream()
+                .filter(channel -> channel != excludeChannel && channel.isActive())
+                .forEach(channel -> channel.writeAndFlush(new TextWebSocketFrame(message)));
+
+        // 记录广播消息的日志
         log.info("广播消息发送（排除用户 {}）: {}", excludeUserId, message);
     }
+
 
     /**
      * 获取在线用户数量
@@ -148,7 +157,7 @@ public class WebSocketChannelManager {
      */
     public boolean isUserOnline(String userId) {
         Channel channel = userChannelMap.get(userId);
-        return channel != null && channel.isActive();
+        return !ObjectUtils.isEmpty(channel) && channel.isActive();
     }
 
     /**
