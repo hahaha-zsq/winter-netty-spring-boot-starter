@@ -15,6 +15,7 @@ import io.netty.handler.ssl.util.SelfSignedCertificate;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.ObjectUtils;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
@@ -82,7 +83,7 @@ public class WebSocketChannelInitializer extends ChannelInitializer<SocketChanne
      * @throws Exception 初始化SSL上下文时可能抛出的异常
      */
     private void initSslContext() throws Exception {
-        if (properties.getSslCertPath() != null && properties.getSslKeyPath() != null) {
+        if (!ObjectUtils.isEmpty(properties.getSslCertPath()) && !ObjectUtils.isEmpty(properties.getSslKeyPath())) {
             // 使用自定义证书
             File certFile = new File(properties.getSslCertPath());
             File keyFile = new File(properties.getSslKeyPath());

@@ -11,8 +11,93 @@ import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * WebSocket消息处理器
+ * <table style="border: 1px solid black; border-collapse: collapse;">
+ *   <thead>
+ *     <tr>
+ *       <th style="border: 1px solid black;">方法名</th>
+ *       <th style="border: 1px solid black;">触发时机</th>
+ *       <th style="border: 1px solid black;">适合操作</th>
+ *       <th style="border: 1px solid black;">注意事项</th>
+ *     </tr>
+ *   </thead>
+ *   <tbody>
+ *     <tr>
+ *       <td style="border: 1px solid black;">channelRegistered()</td>
+ *       <td style="border: 1px solid black;">Channel 注册到 Selector</td>
+ *       <td style="border: 1px solid black;">记录通道注册日志<br/>准备线程相关资源</td>
+ *       <td style="border: 1px solid black;">无</td>
+ *     </tr>
+ *     <tr>
+ *       <td style="border: 1px solid black;">channelActive()</td>
+ *       <td style="border: 1px solid black;">连接建立成功后</td>
+ *       <td style="border: 1px solid black;">
+ *         发送欢迎/握手消息<br/>
+ *         初始化用户会话<br/>
+ *         通知业务系统“用户上线”
+ *       </td>
+ *       <td style="border: 1px solid black;">主业务起点，可调用 ctx.writeAndFlush()</td>
+ *     </tr>
+ *     <tr>
+ *       <td style="border: 1px solid black;">channelRead()/channelRead0()</td>
+ *       <td style="border: 1px solid black;">收到数据</td>
+ *       <td style="border: 1px solid black;">
+ *         解码、协议解析<br/>
+ *         处理业务逻辑、转发数据
+ *       </td>
+ *       <td style="border: 1px solid black;">避免在 I/O 线程中执行耗时逻辑</td>
+ *     </tr>
+ *     <tr>
+ *       <td style="border: 1px solid black;">channelReadComplete()</td>
+ *       <td style="border: 1px solid black;">一次读取操作完成</td>
+ *       <td style="border: 1px solid black;">
+ *         ctx.flush() 刷新缓冲区<br/>
+ *         执行后置处理，比如聚合分析
+ *       </td>
+ *       <td style="border: 1px solid black;">如果用 ctx.write()，记得 flush()</td>
+ *     </tr>
+ *     <tr>
+ *       <td style="border: 1px solid black;">channelInactive()</td>
+ *       <td style="border: 1px solid black;">连接断开</td>
+ *       <td style="border: 1px solid black;">
+ *         清理用户状态<br/>
+ *         通知服务端“下线”<br/>
+ *         关闭数据库或会话缓存
+ *       </td>
+ *       <td style="border: 1px solid black;">资源不清理会导致内存泄漏</td>
+ *     </tr>
+ *     <tr>
+ *       <td style="border: 1px solid black;">channelUnregistered()</td>
+ *       <td style="border: 1px solid black;">Channel 从 Selector 注销</td>
+ *       <td style="border: 1px solid black;">
+ *         删除底层引用<br/>
+ *         打印生命周期日志
+ *       </td>
+ *       <td style="border: 1px solid black;">不常用，资源敏感项目会用</td>
+ *     </tr>
+ *     <tr>
+ *       <td style="border: 1px solid black;">exceptionCaught()</td>
+ *       <td style="border: 1px solid black;">发生异常</td>
+ *       <td style="border: 1px solid black;">
+ *         打印错误日志<br/>
+ *         关闭连接 ctx.close()<br/>
+ *         发送错误响应
+ *       </td>
+ *       <td style="border: 1px solid black;">不重写会导致异常传播导致崩溃</td>
+ *     </tr>
+ *     <tr>
+ *       <td style="border: 1px solid black;">userEventTriggered()</td>
+ *       <td style="border: 1px solid black;">用户自定义事件</td>
+ *       <td style="border: 1px solid black;">
+ *         IdleStateHandler 心跳检测<br/>
+ *         WebSocket 握手完成事件<br/>
+ *         自定义消息控制事件
+ *       </td>
+ *       <td style="border: 1px solid black;">适合处理非数据流的逻辑</td>
+ *     </tr>
+ *   </tbody>
+ * </table>
  */
+
 @Slf4j
 @ChannelHandler.Sharable
 public class WebSocketHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
@@ -30,19 +115,18 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<WebSocketFrame
         this.messageService = messageService;
     }
 
+    // 当通道注册时调用，表示通道已注册
+    @Override
+    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+        log.info("通道已注册: {}", ctx.channel().id());
+        super.channelRegistered(ctx);
+    }
+
     // 当通道激活时调用，表示WebSocket连接建立
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         channelManager.addChannel(ctx.channel());
         log.info("WebSocket连接建立: {}", ctx.channel().id());
-    }
-
-    // 当通道非激活时调用，表示WebSocket连接断开
-    @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        channelManager.removeChannel(ctx.channel());
-        log.info("WebSocket连接断开: {}", ctx.channel().id());
-        ctx.close(); // 显式关闭
     }
 
     // 处理接收到的WebSocket帧
@@ -62,6 +146,29 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<WebSocketFrame
                 handleMessage(ctx, message);
             }
         }
+    }
+
+    //  处理通道读取完成事件
+    @Override
+    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+        // 刷新通道，确保所有写入的消息都立即发送出去
+        ctx.flush();
+        super.channelReadComplete(ctx);
+    }
+
+    // 当发生异常时调用
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        log.error("WebSocket连接异常: {}", cause.getMessage(), cause);
+        ctx.close();
+    }
+
+    // 当通道非激活时调用，表示WebSocket连接断开
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        channelManager.removeChannel(ctx.channel());
+        log.info("WebSocket连接断开: {}", ctx.channel().id());
+        ctx.close(); // 显式关闭
     }
 
     /**
@@ -183,10 +290,5 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<WebSocketFrame
         sendMessage(ctx, errorMessage);
     }
 
-    // 当发生异常时调用
-    @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        log.error("WebSocket连接异常: {}", cause.getMessage(), cause);
-        ctx.close();
-    }
+
 }
