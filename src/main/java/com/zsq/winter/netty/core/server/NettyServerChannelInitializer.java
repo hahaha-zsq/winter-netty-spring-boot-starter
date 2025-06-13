@@ -1,7 +1,7 @@
-package com.zsq.winter.netty.core;
+package com.zsq.winter.netty.core.server;
 
 
-import com.zsq.winter.netty.autoconfigure.WebSocketProperties;
+import com.zsq.winter.netty.autoconfigure.NettyProperties;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
@@ -30,28 +30,28 @@ import java.util.concurrent.TimeUnit;
  * •	每个连接独立创建一个 ChannelPipeline
  */
 @Slf4j
-public class WebSocketChannelInitializer extends ChannelInitializer<SocketChannel> {
+public class NettyServerChannelInitializer extends ChannelInitializer<SocketChannel> {
 
 
     /**
      * WebSocket属性配置
      */
-    private final WebSocketProperties properties;
+    private final NettyProperties properties;
 
     /**
      * WebSocket消息处理器，你自定义的处理 WebSocket 消息的业务逻辑类（必须继承 ChannelInboundHandlerAdapter 或类似）
      */
-    private final WebSocketHandler webSocketHandler;
+    private final NettyServerHandler nettyServerHandler;
 
     /**
      * 构造函数
      *
      * @param properties       WebSocket属性配置
-     * @param webSocketHandler WebSocket消息处理器
+     * @param nettyServerHandler WebSocket消息处理器
      */
-    public WebSocketChannelInitializer(WebSocketProperties properties, WebSocketHandler webSocketHandler) {
+    public NettyServerChannelInitializer(NettyProperties properties, NettyServerHandler nettyServerHandler) {
         this.properties = properties;
-        this.webSocketHandler = webSocketHandler;
+        this.nettyServerHandler = nettyServerHandler;
     }
 
 
@@ -72,7 +72,7 @@ public class WebSocketChannelInitializer extends ChannelInitializer<SocketChanne
     @PostConstruct
     public void init() throws Exception {
         // 初始化SSL上下文
-        if (properties.isSslEnabled()) {
+        if (properties.getServer().isSslEnabled()) {
             initSslContext();
         }
     }
@@ -88,14 +88,14 @@ public class WebSocketChannelInitializer extends ChannelInitializer<SocketChanne
      */
     private void initSslContext() throws Exception {
         // 检查是否提供了自定义的证书和密钥路径
-        if (!ObjectUtils.isEmpty(properties.getSslCertPath()) && !ObjectUtils.isEmpty(properties.getSslKeyPath())) {
+        if (!ObjectUtils.isEmpty(properties.getServer().getSslCertPath()) && !ObjectUtils.isEmpty(properties.getServer().getSslKeyPath())) {
             // 使用自定义证书
-            File certFile = new File(properties.getSslCertPath());
-            File keyFile = new File(properties.getSslKeyPath());
+            File certFile = new File(properties.getServer().getSslCertPath());
+            File keyFile = new File(properties.getServer().getSslKeyPath());
             // 构建SSL上下文
             sslContext = SslContextBuilder.forServer(certFile, keyFile).build();
             // 记录日志信息
-            log.info("使用自定义SSL证书: {}", properties.getSslCertPath());
+            log.info("使用自定义SSL证书: {}", properties.getServer().getSslCertPath());
         } else {
             // 使用自签名证书（仅用于开发测试）
             SelfSignedCertificate ssc = new SelfSignedCertificate();
@@ -134,7 +134,7 @@ public class WebSocketChannelInitializer extends ChannelInitializer<SocketChanne
         pipeline.addLast(new HttpServerCodec());
 
         // HTTP对象聚合器，将多个HTTP消息聚合成一个完整的HTTP消息  ===>彻底消除了半包问题（最大帧可配置）
-        pipeline.addLast(new HttpObjectAggregator(properties.getMaxFrameSize()));
+        pipeline.addLast(new HttpObjectAggregator(properties.getServer().getMaxFrameSize()));
 
         // 用于处理大文件传输（如发送大图）  ===>WebSocket 基于帧（frame）协议，有边界，不存在粘包问题
         pipeline.addLast(new ChunkedWriteHandler());
@@ -144,10 +144,10 @@ public class WebSocketChannelInitializer extends ChannelInitializer<SocketChanne
 
         // WebSocket 协议升级处理器（核心）
         pipeline.addLast(new WebSocketServerProtocolHandler(
-                properties.getPath(),  // WebSocket路径
+                properties.getServer().getPath(),  // WebSocket路径
                 null,                  // 子协议
                 true,                  // 允许扩展
-                properties.getMaxFrameSize(), // 最大帧大小
+                properties.getServer().getMaxFrameSize(), // 最大帧大小
                 false,                 // 允许mask
                 true,                  // 检查UTF8
                 10000L                 // 握手超时时间
@@ -155,14 +155,14 @@ public class WebSocketChannelInitializer extends ChannelInitializer<SocketChanne
 
         // 空闲状态处理器（心跳检测）
         pipeline.addLast(new IdleStateHandler(
-                properties.getHeartbeatInterval(), // 读空闲时间
+                properties.getServer().getHeartbeatInterval(), // 读空闲时间
                 0,                                 // 写空闲时间
                 0,                                 // 读写空闲时间
                 TimeUnit.SECONDS
         ));
 
         // 自定义WebSocket处理器
-        pipeline.addLast(webSocketHandler);
+        pipeline.addLast(nettyServerHandler);
 
         log.debug("WebSocket管道初始化完成");
     }

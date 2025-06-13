@@ -1,19 +1,19 @@
 package com.zsq.winter.netty.service;
 
-import com.zsq.winter.netty.entity.WebSocketMessage;
+import com.zsq.winter.netty.entity.NettyMessage;
 import io.netty.channel.Channel;
 
 /**
  * WebSocket消息业务处理服务接口
  */
-public interface WebSocketMessageService {
+public interface NettyMessageService {
 
     /**
      * 处理WebSocket消息
      * @param channel 连接通道
      * @param message 消息对象
      */
-    void handleMessage(Channel channel, WebSocketMessage message);
+    void handleMessage(Channel channel, NettyMessage message);
 
     /**
      * 用户连接时的处理

@@ -1,23 +1,23 @@
 package com.zsq.winter.netty.service.impl;
 
 import cn.hutool.json.JSONUtil;
-import com.zsq.winter.netty.core.WebSocketChannelManager;
-import com.zsq.winter.netty.entity.WebSocketMessage;
-import com.zsq.winter.netty.service.WebSocketMessageService;
+import com.zsq.winter.netty.core.server.NettyServerChannelManager;
+import com.zsq.winter.netty.entity.NettyMessage;
+import com.zsq.winter.netty.service.NettyMessageService;
 import io.netty.channel.Channel;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class DefaultWebSocketMessageServiceImpl implements WebSocketMessageService {
+public class DefaultNettyMessageServiceImpl implements NettyMessageService {
 
-    private final WebSocketChannelManager channelManager;
+    private final NettyServerChannelManager channelManager;
 
-    public DefaultWebSocketMessageServiceImpl(WebSocketChannelManager channelManager) {
+    public DefaultNettyMessageServiceImpl(NettyServerChannelManager channelManager) {
         this.channelManager = channelManager;
     }
 
     @Override
-    public void handleMessage(Channel channel, WebSocketMessage message) {
+    public void handleMessage(Channel channel, NettyMessage message) {
         log.info("实际业务：处理WebSocket消息 - 通道: {}, 消息类型: {}, 内容: {}",
                 channel.id(), message.getType(), message.getContent());
 
@@ -70,7 +70,7 @@ public class DefaultWebSocketMessageServiceImpl implements WebSocketMessageServi
     /**
      * 处理文本消息
      */
-    private void handleTextMessage(Channel channel, WebSocketMessage message) {
+    private void handleTextMessage(Channel channel, NettyMessage message) {
         sendMessage(channel, message);
         log.debug("处理文本消息，通道: {}", channel.id());
     }
@@ -79,9 +79,9 @@ public class DefaultWebSocketMessageServiceImpl implements WebSocketMessageServi
     /**
      * 处理心跳消息
      */
-    private void handleHeartbeat(Channel channel, WebSocketMessage message) {
+    private void handleHeartbeat(Channel channel, NettyMessage message) {
         // 回复心跳
-        WebSocketMessage pong = WebSocketMessage.heartbeat();
+        NettyMessage pong = NettyMessage.heartbeat();
         pong.setContent("pong");
         sendMessage(channel, pong);
 
@@ -91,28 +91,28 @@ public class DefaultWebSocketMessageServiceImpl implements WebSocketMessageServi
     /**
      * 处理系统消息
      */
-    private void handleSystemMessage(Channel channel, WebSocketMessage message) {
+    private void handleSystemMessage(Channel channel, NettyMessage message) {
         log.info("收到系统消息: {}", message.getContent());
     }
 
     /**
      * 处理广播消息
      */
-    private void handleBroadcastMessage(Channel channel, WebSocketMessage message) {
+    private void handleBroadcastMessage(Channel channel, NettyMessage message) {
         log.info("处理广播消息: {}", message.getContent());
     }
 
     /**
      * 处理私聊消息
      */
-    private void handlePrivateMessage(Channel channel, WebSocketMessage message) {
+    private void handlePrivateMessage(Channel channel, NettyMessage message) {
         log.info("处理私聊消息: {}", message.getContent());
     }
 
     /**
      * 发送消息到指定通道
      */
-    private void sendMessage(Channel channel, WebSocketMessage message) {
+    private void sendMessage(Channel channel, NettyMessage message) {
         try {
             String jsonMessage = JSONUtil.toJsonStr(message);
             channelManager.sendToChannel(channel, jsonMessage);
@@ -125,7 +125,7 @@ public class DefaultWebSocketMessageServiceImpl implements WebSocketMessageServi
      * 发送错误消息
      */
     private void sendErrorMessage(Channel channel, String errorMsg) {
-        WebSocketMessage errorMessage = WebSocketMessage.system("错误: " + errorMsg);
+        NettyMessage errorMessage = NettyMessage.system("错误: " + errorMsg);
         sendMessage(channel, errorMessage);
     }
 }

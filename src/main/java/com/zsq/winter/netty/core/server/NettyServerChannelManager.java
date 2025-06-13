@@ -1,4 +1,4 @@
-package com.zsq.winter.netty.core;
+package com.zsq.winter.netty.core.server;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelId;
@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentMap;
  * 管理所有 WebSocket 通信的连接通道（Channel）、用户映射、消息分发等，是整个 Netty WebSocket 服务中的“连接中心”。
  */
 @Slf4j
-public class WebSocketChannelManager {
+public class NettyServerChannelManager {
 
 
     /**

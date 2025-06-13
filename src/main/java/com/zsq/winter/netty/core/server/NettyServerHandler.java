@@ -1,8 +1,8 @@
-package com.zsq.winter.netty.core;
+package com.zsq.winter.netty.core.server;
 
 import cn.hutool.json.JSONUtil;
-import com.zsq.winter.netty.entity.WebSocketMessage;
-import com.zsq.winter.netty.service.WebSocketMessageService;
+import com.zsq.winter.netty.entity.NettyMessage;
+import com.zsq.winter.netty.service.NettyMessageService;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -11,7 +11,6 @@ import io.netty.handler.timeout.IdleStateEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-import org.springframework.util.ObjectUtils;
 
 /**
  * <table style="border: 1px solid black; border-collapse: collapse;">
@@ -103,20 +102,20 @@ import org.springframework.util.ObjectUtils;
 
 @Slf4j
 @ChannelHandler.Sharable
-public class WebSocketHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
+public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
 
     // 通道管理器，用于管理WebSocket通道
-    private final WebSocketChannelManager channelManager;
+    private final NettyServerChannelManager channelManager;
 
     // 消息服务，用于处理接收到的消息
-    private final WebSocketMessageService messageService;
+    private final NettyMessageService messageService;
 
     private final ThreadPoolTaskExecutor executor;
 
     // 构造函数，初始化WebSocketHandler
-    public WebSocketHandler(WebSocketChannelManager channelManager,
-                            @Qualifier("webSocketMessageService") WebSocketMessageService messageService,
-                            @Qualifier("winterNettyTaskExecutor") ThreadPoolTaskExecutor executor) {
+    public NettyServerHandler(NettyServerChannelManager channelManager,
+                              @Qualifier("webSocketMessageService") NettyMessageService messageService,
+                              @Qualifier("winterNettyServerTaskExecutor") ThreadPoolTaskExecutor executor) {
         this.channelManager = channelManager;
         this.messageService = messageService;
         this.executor = executor;
@@ -168,7 +167,7 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<WebSocketFrame
      *
      * <p>当 Netty 从客户端接收到一个 WebSocket 消息帧时，该方法会被调用。
      * 此方法仅处理 {@link TextWebSocketFrame} 类型的消息帧，并尝试将其内容解析为
-     * JSON 格式的 {@link WebSocketMessage} 对象。如果解析成功，则调用相应的业务逻辑进行处理；
+     * JSON 格式的 {@link NettyMessage} 对象。如果解析成功，则调用相应的业务逻辑进行处理；
      * 如果解析失败，则将消息作为普通文本消息处理。</p>
      *
      * <p>此方法内部使用了 Hutool 的 JSON 工具类进行 JSON 解析，若解析过程中出现异常，
@@ -185,10 +184,10 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<WebSocketFrame
             String text = ((TextWebSocketFrame) frame).text();
             log.debug("收到文本消息: {}", text);
             try {
-                WebSocketMessage message = JSONUtil.toBean(text, WebSocketMessage.class);
+                NettyMessage message = JSONUtil.toBean(text, NettyMessage.class);
                 handleMessage(ctx, message);
             } catch (Exception e) {
-                WebSocketMessage message = WebSocketMessage.text(text);
+                NettyMessage message = NettyMessage.text(text);
                 handleMessage(ctx, message);
             }
 
@@ -336,7 +335,7 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<WebSocketFrame
     /**
      * 处理WebSocket消息
      */
-    private void handleMessage(ChannelHandlerContext ctx, WebSocketMessage message) {
+    private void handleMessage(ChannelHandlerContext ctx, NettyMessage message) {
         try {
             // 调用业务处理服务
             executor.execute(() -> {
@@ -354,14 +353,14 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<WebSocketFrame
      * 发送错误消息
      */
     private void sendErrorMessage(ChannelHandlerContext ctx, String errorMsg) {
-        WebSocketMessage errorMessage = WebSocketMessage.system(errorMsg);
+        NettyMessage errorMessage = NettyMessage.system(errorMsg);
         sendMessage(ctx, errorMessage);
     }
 
     /**
      * 发送消息到客户端
      */
-    private void sendMessage(ChannelHandlerContext ctx, WebSocketMessage message) {
+    private void sendMessage(ChannelHandlerContext ctx, NettyMessage message) {
         if (!ctx.channel().isActive()) return;
 
         try {

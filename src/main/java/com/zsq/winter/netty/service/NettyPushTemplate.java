@@ -1,8 +1,8 @@
 package com.zsq.winter.netty.service;
 
 import cn.hutool.json.JSONUtil;
-import com.zsq.winter.netty.core.WebSocketChannelManager;
-import com.zsq.winter.netty.entity.WebSocketMessage;
+import com.zsq.winter.netty.core.server.NettyServerChannelManager;
+import com.zsq.winter.netty.entity.NettyMessage;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
@@ -65,17 +65,17 @@ import java.util.UUID;
  */
 
 @Slf4j
-public class WebSocketPushTemplate {
+public class NettyPushTemplate {
 
     // 通道管理器，用于管理WebSocket通道
-    private final WebSocketChannelManager channelManager;
+    private final NettyServerChannelManager channelManager;
 
     /**
      * 构造函数
      *
      * @param channelManager 通道管理器
      */
-    public WebSocketPushTemplate(WebSocketChannelManager channelManager) {
+    public NettyPushTemplate(NettyServerChannelManager channelManager) {
         this.channelManager = channelManager;
     }
 
@@ -100,7 +100,7 @@ public class WebSocketPushTemplate {
      */
     public boolean pushToUser(String userId, String content, Map<String, Object> extra) {
         try {
-            WebSocketMessage message = WebSocketMessage.system(content);
+            NettyMessage message = NettyMessage.system(content);
             message.setMessageId(UUID.randomUUID().toString());
             message.setToUserId(userId);
             message.setExtra(extra);
@@ -164,7 +164,7 @@ public class WebSocketPushTemplate {
      */
     public void broadcast(String content, Map<String, Object> extra) {
         try {
-            WebSocketMessage message = WebSocketMessage.broadcast("system", content);
+            NettyMessage message = NettyMessage.broadcast("system", content);
             message.setMessageId(UUID.randomUUID().toString());
             message.setExtra(extra);
             String jsonMessage = JSONUtil.toJsonStr(message);
@@ -195,7 +195,7 @@ public class WebSocketPushTemplate {
      */
     public void broadcastExclude(String excludeUserId, String content, Map<String, Object> extra) {
         try {
-            WebSocketMessage message = WebSocketMessage.broadcast("system", content);
+            NettyMessage message = NettyMessage.broadcast("system", content);
             message.setMessageId(UUID.randomUUID().toString());
             message.setExtra(extra);
             String jsonMessage = JSONUtil.toJsonStr(message);
@@ -215,7 +215,7 @@ public class WebSocketPushTemplate {
      * @param message 自定义消息对象
      * @return 推送是否成功
      */
-    public boolean pushCustomMessage(String userId, WebSocketMessage message) {
+    public boolean pushCustomMessage(String userId, NettyMessage message) {
         try {
             if (message.getMessageId() == null) {
                 message.setMessageId(UUID.randomUUID().toString());
@@ -264,7 +264,7 @@ public class WebSocketPushTemplate {
      * @return 推送是否成功
      */
     public boolean sendNotification(String userId, String title, String content) {
-        WebSocketMessage message = WebSocketMessage.system(content);
+        NettyMessage message = NettyMessage.system(content);
         message.setMessageId(UUID.randomUUID().toString());
         message.setToUserId(userId);
 
@@ -287,7 +287,7 @@ public class WebSocketPushTemplate {
      * @return 推送是否成功
      */
     public boolean sendDataUpdate(String userId, String dataType, Object data) {
-        WebSocketMessage message = WebSocketMessage.system("数据更新");
+        NettyMessage message = NettyMessage.system("数据更新");
         message.setMessageId(UUID.randomUUID().toString());
         message.setToUserId(userId);
 

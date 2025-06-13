@@ -1,6 +1,6 @@
-package com.zsq.winter.netty.core;
+package com.zsq.winter.netty.core.server;
 
-import com.zsq.winter.netty.autoconfigure.WebSocketProperties;
+import com.zsq.winter.netty.autoconfigure.NettyProperties;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelOption;
@@ -19,14 +19,14 @@ import java.util.concurrent.TimeUnit;
  * Netty WebSocket服务器启动器（集成Spring生命周期）
  */
 @Slf4j
-public class NettyWebSocketServer {
+public class NettyServer {
 
     // WebSocket属性配置类（端口、线程数、路径等）
-    private final WebSocketProperties properties;
+    private final NettyProperties properties;
     // Channel初始化器，注入WebSocket相关的业务处理器
-    private final WebSocketChannelInitializer channelInitializer;
+    private final NettyServerChannelInitializer channelInitializer;
     // 异步线程池（用于启动Netty，避免阻塞主线程）
-    private final ThreadPoolTaskExecutor winterNettyTaskExecutor;
+    private final ThreadPoolTaskExecutor winterNettyServerTaskExecutor;
 
     // Boss线程组（用于处理客户端连接请求）
     private EventLoopGroup bossGroup;
@@ -35,29 +35,38 @@ public class NettyWebSocketServer {
     // Channel绑定结果的异步控制对象
     private ChannelFuture channelFuture;
 
-    public NettyWebSocketServer(WebSocketProperties properties,
-                                WebSocketChannelInitializer channelInitializer,
-                                ThreadPoolTaskExecutor winterNettyTaskExecutor) {
+    public NettyServer(NettyProperties properties,
+                       NettyServerChannelInitializer channelInitializer,
+                       ThreadPoolTaskExecutor winterNettyServerTaskExecutor) {
         this.properties = properties;
         this.channelInitializer = channelInitializer;
-        this.winterNettyTaskExecutor = winterNettyTaskExecutor;
+        this.winterNettyServerTaskExecutor = winterNettyServerTaskExecutor;
     }
-
     /**
-     * Spring容器启动后，自动调用，异步启动Netty服务
+     * Spring容器启动后自动调用，用于异步启动 Netty WebSocket 服务。
+     * <p>
+     * 使用线程池 {@link ThreadPoolTaskExecutor} 异步执行 Netty 启动逻辑的原因如下：
+     * <ul>
+     *   <li><b>避免阻塞 Spring 启动流程：</b> {@code doStart()} 方法内部使用 {@code channelFuture.channel().closeFuture().sync()} 会阻塞当前线程，
+     *       若在主线程执行将导致 Spring Boot 启动流程被“卡住”，无法正常完成应用初始化。</li>
+     *   <li><b>Netty 是阻塞模型：</b> Netty Server 需要通过 {@code sync()} 保持服务常驻运行，若不在新线程中启动，会直接阻塞 Spring 启动线程。</li>
+     *   <li><b>线程隔离与资源控制：</b> 将 Netty 启动逻辑交由自定义线程池执行，可灵活配置核心线程数、异常处理策略、队列大小等，增强系统资源管理能力。</li>
+     *   <li><b>提高服务健壮性：</b> Netty 运行过程中若发生异常，可在线程池中捕获并处理，避免影响整个 Spring Boot 主线程，提高容错性和可维护性。</li>
+     * </ul>
      */
     @PostConstruct
     public void start() {
-        winterNettyTaskExecutor.execute(this::doStart);
+        winterNettyServerTaskExecutor.execute(this::doStart);
     }
+
 
     /**
      * 启动Netty服务
      */
     private void doStart() {
-        int bossThreads = properties.getBossThreads();
-        int workerThreads = properties.getWorkerThreads() == 0 ?
-                Runtime.getRuntime().availableProcessors() * 2 : properties.getWorkerThreads();
+        int bossThreads = properties.getServer().getBossThreads();
+        int workerThreads = properties.getServer().getWorkerThreads() == 0 ?
+                Runtime.getRuntime().availableProcessors() * 2 : properties.getServer().getWorkerThreads();
 
         // 初始化线程组
         bossGroup = new NioEventLoopGroup(bossThreads);
@@ -85,13 +94,13 @@ public class NettyWebSocketServer {
                     .childOption(ChannelOption.SO_SNDBUF, 32 * 1024); // 设置发送缓冲区大小，提升发送效率。
 
             // 异步绑定端口并返回一个 ChannelFuture 对象，并不意味着服务会一直运行下去。一旦 bind() 完成，主线程如果没有其他操作，就会继续往下执行，最终退出整个方法，甚至 JVM 进程
-            channelFuture = bootstrap.bind(properties.getPort()).sync();
+            channelFuture = bootstrap.bind(properties.getServer().getPort()).sync();
 
             log.info("Netty WebSocket服务器启动成功");
             log.info("服务地址: {}://localhost:{}{}",
-                    properties.isSslEnabled() ? "wss" : "ws",
-                    properties.getPort(),
-                    properties.getPath());
+                    properties.getServer().isSslEnabled() ? "wss" : "ws",
+                    properties.getServer().getPort(),
+                    properties.getServer().getPath());
             log.info("Boss线程数: {}, Worker线程数: {}", bossThreads, workerThreads);
 
             /*
@@ -165,6 +174,6 @@ public class NettyWebSocketServer {
      * 获取服务器端口
      */
     public int getPort() {
-        return properties.getPort();
+        return properties.getServer().getPort();
     }
 }

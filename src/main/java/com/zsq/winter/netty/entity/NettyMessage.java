@@ -10,7 +10,7 @@ import java.util.Map;
  * WebSocket消息实体
  */
 @Data
-public class WebSocketMessage {
+public class NettyMessage {
 
     /**
      * 消息类型枚举
@@ -63,7 +63,7 @@ public class WebSocketMessage {
      * 默认构造函数
      * 初始化消息的时间为当前时间
      */
-    public WebSocketMessage() {
+    public NettyMessage() {
         this.timestamp = LocalDateTime.now();
     }
 
@@ -73,7 +73,7 @@ public class WebSocketMessage {
      * @param type   消息类型
      * @param content 消息内容
      */
-    public WebSocketMessage(MessageType type, String content) {
+    public NettyMessage(MessageType type, String content) {
         this();
         this.type = type;
         this.content = content;
@@ -86,7 +86,7 @@ public class WebSocketMessage {
      * @param fromUserId 发送者ID
      * @param content    消息内容
      */
-    public WebSocketMessage(MessageType type, String fromUserId, String content) {
+    public NettyMessage(MessageType type, String fromUserId, String content) {
         this(type, content);
         this.fromUserId = fromUserId;
     }
@@ -97,8 +97,8 @@ public class WebSocketMessage {
      * @param content 消息内容
      * @return WebSocketMessage实例
      */
-    public static WebSocketMessage text(String content) {
-        return new WebSocketMessage(MessageType.TEXT, content);
+    public static NettyMessage text(String content) {
+        return new NettyMessage(MessageType.TEXT, content);
     }
 
     /**
@@ -106,8 +106,8 @@ public class WebSocketMessage {
      *
      * @return WebSocketMessage实例
      */
-    public static WebSocketMessage heartbeat() {
-        return new WebSocketMessage(MessageType.HEARTBEAT, "ping");
+    public static NettyMessage heartbeat() {
+        return new NettyMessage(MessageType.HEARTBEAT, "ping");
     }
 
     /**
@@ -116,8 +116,8 @@ public class WebSocketMessage {
      * @param content 消息内容
      * @return WebSocketMessage实例
      */
-    public static WebSocketMessage system(String content) {
-        return new WebSocketMessage(MessageType.SYSTEM, content);
+    public static NettyMessage system(String content) {
+        return new NettyMessage(MessageType.SYSTEM, content);
     }
 
     /**
@@ -127,8 +127,8 @@ public class WebSocketMessage {
      * @param content    消息内容
      * @return WebSocketMessage实例
      */
-    public static WebSocketMessage broadcast(String fromUserId, String content) {
-        return new WebSocketMessage(MessageType.BROADCAST, fromUserId, content);
+    public static NettyMessage broadcast(String fromUserId, String content) {
+        return new NettyMessage(MessageType.BROADCAST, fromUserId, content);
     }
 
     /**
@@ -139,8 +139,8 @@ public class WebSocketMessage {
      * @param content    消息内容
      * @return WebSocketMessage实例
      */
-    public static WebSocketMessage privateMessage(String fromUserId, String toUserId, String content) {
-        WebSocketMessage message = new WebSocketMessage(MessageType.PRIVATE, fromUserId, content);
+    public static NettyMessage privateMessage(String fromUserId, String toUserId, String content) {
+        NettyMessage message = new NettyMessage(MessageType.PRIVATE, fromUserId, content);
         message.setToUserId(toUserId);
         return message;
     }
