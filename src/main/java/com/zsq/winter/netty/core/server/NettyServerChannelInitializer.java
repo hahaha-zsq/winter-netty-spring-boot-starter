@@ -1,6 +1,5 @@
 package com.zsq.winter.netty.core.server;
 
-
 import com.zsq.winter.netty.autoconfigure.NettyProperties;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
@@ -22,31 +21,51 @@ import java.io.File;
 import java.util.concurrent.TimeUnit;
 
 /**
- * WebSocket管道初始化器
- * ChannelInitializer 是 Netty 中用于初始化 Channel（连接）处理链的钩子点，它让你可以在 Channel 创建时注册需要的所有处理器
- * 负责初始化SocketChannel的管道，配置SSL、HTTP和WebSocket处理器
- * •	用于初始化每个客户端连接的 SocketChannel
- * •	会被 Netty 的 ServerBootstrap.childHandler(...) 所引用
- * •	每个连接独立创建一个 ChannelPipeline
+ * WebSocket通道初始化器
+ * 
+ * 该类负责为每个新的WebSocket连接配置处理器链（Pipeline），主要功能包括：
+ * 1. SSL/TLS加密通信配置
+ * 2. HTTP协议编解码
+ * 3. WebSocket协议支持
+ * 4. 心跳检测
+ * 5. 消息压缩
+ * 6. 业务逻辑处理
+ * 
+ * 处理器链配置顺序（从前到后）：
+ * 1. SSL处理器（可选）
+ * 2. HTTP编解码器
+ * 3. HTTP消息聚合器
+ * 4. 大文件传输处理器
+ * 5. WebSocket压缩处理器
+ * 6. WebSocket协议处理器
+ * 7. 心跳检测处理器
+ * 8. 业务逻辑处理器
  */
 @Slf4j
 public class NettyServerChannelInitializer extends ChannelInitializer<SocketChannel> {
 
-
     /**
-     * WebSocket属性配置
+     * WebSocket配置属性
+     * 包含SSL配置、路径配置、心跳配置等
      */
     private final NettyProperties properties;
 
     /**
-     * WebSocket消息处理器，你自定义的处理 WebSocket 消息的业务逻辑类（必须继承 ChannelInboundHandlerAdapter 或类似）
+     * WebSocket消息处理器
+     * 处理WebSocket协议下的业务消息
      */
     private final NettyServerHandler nettyServerHandler;
 
     /**
+     * SSL上下文
+     * 用于配置HTTPS/WSS加密通信
+     */
+    private SslContext sslContext;
+
+    /**
      * 构造函数
      *
-     * @param properties       WebSocket属性配置
+     * @param properties WebSocket配置属性
      * @param nettyServerHandler WebSocket消息处理器
      */
     public NettyServerChannelInitializer(NettyProperties properties, NettyServerHandler nettyServerHandler) {
@@ -54,42 +73,37 @@ public class NettyServerChannelInitializer extends ChannelInitializer<SocketChan
         this.nettyServerHandler = nettyServerHandler;
     }
 
-
     /**
-     * SSL上下文，用于配置SSL处理器
-     */
-    private SslContext sslContext;
-
-    /**
-     * 初始化方法，主要用于初始化SSL上下文
-     * 在Spring容器中，该方法会在依赖注入完成后调用
-     * •	启动时自动调用 init() 初始化 SSL 上下文
-     * •	支持自定义证书或开发时使用自签名证书
-     * •	如果配置启用 SSL，会在 pipeline 中加上 sslContext.newHandler(...)
+     * 初始化SSL上下文
+     * Spring容器启动时自动调用
+     * 
+     * 支持两种SSL证书配置方式：
+     * 1. 自定义证书：通过配置文件指定证书和密钥文件路径
+     * 2. 自签名证书：用于开发测试环境，自动生成临时证书
      *
-     * @throws Exception 初始化SSL上下文时可能抛出的异常
+     * @throws Exception SSL上下文初始化失败时抛出
      */
     @PostConstruct
     public void init() throws Exception {
-        // 初始化SSL上下文
         if (properties.getServer().isSslEnabled()) {
             initSslContext();
         }
     }
 
     /**
-     * 初始化SSL上下文
-     * <p>
-     * 此方法用于根据配置的证书路径和密钥路径初始化SSL上下文
-     * 如果提供了自定义的证书和密钥路径，则使用这些文件来创建SSL上下文
-     * 否则，将生成一个自签名证书用于开发测试环境
+     * 初始化SSL上下文的具体实现
+     * 
+     * 证书选择逻辑：
+     * 1. 如果配置了证书和密钥路径，使用自定义证书
+     * 2. 如果未配置证书，自动生成自签名证书（仅用于开发测试）
      *
-     * @throws Exception 如果初始化SSL上下文过程中出现错误，则抛出异常
+     * @throws Exception 证书加载或SSL上下文创建失败时抛出
      */
     private void initSslContext() throws Exception {
-        // 检查是否提供了自定义的证书和密钥路径
-        if (!ObjectUtils.isEmpty(properties.getServer().getSslCertPath()) && !ObjectUtils.isEmpty(properties.getServer().getSslKeyPath())) {
-            // 使用自定义证书
+        // 检查是否配置了自定义证书
+        if (!ObjectUtils.isEmpty(properties.getServer().getSslCertPath()) && 
+            !ObjectUtils.isEmpty(properties.getServer().getSslKeyPath())) {
+            // 加载自定义证书
             File certFile = new File(properties.getServer().getSslCertPath());
             File keyFile = new File(properties.getServer().getSslKeyPath());
             // 构建SSL上下文
@@ -97,29 +111,36 @@ public class NettyServerChannelInitializer extends ChannelInitializer<SocketChan
             // 记录日志信息
             log.info("使用自定义SSL证书: {}", properties.getServer().getSslCertPath());
         } else {
-            // 使用自签名证书（仅用于开发测试）
+            // 生成自签名证书
             SelfSignedCertificate ssc = new SelfSignedCertificate();
-            // 构建SSL上下文
             sslContext = SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey()).build();
             // 记录警告信息，自签名证书仅用于开发测试
             log.warn("使用自签名SSL证书，仅用于开发测试");
         }
     }
 
-
     /**
-     * 在每次有新客户端连接都会触发
-     * 初始化Channel管道
-     * 根据配置添加SSL处理器、HTTP编解码器、WebSocket处理器等
+     * 初始化WebSocket通道
+     * 为每个新的客户端连接配置处理器链
+     * 
+     * 处理器配置说明：
+     * 1. SslHandler: SSL/TLS加密通信
+     * 2. HttpServerCodec: HTTP请求解码和响应编码
+     * 3. HttpObjectAggregator: 将HTTP消息的多个部分合并
+     * 4. ChunkedWriteHandler: 支持大文件传输
+     * 5. WebSocketServerCompressionHandler: WebSocket消息压缩
+     * 6. WebSocketServerProtocolHandler: WebSocket协议处理
+     * 7. IdleStateHandler: 连接空闲检测
+     * 8. NettyServerHandler: 业务逻辑处理
      *
-     * @param ch 要初始化的SocketChannel
-     * @throws Exception 初始化过程中可能抛出的异常
+     * @param ch 新建立的客户端连接通道
+     * @throws Exception 初始化过程中发生异常
      */
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
         ChannelPipeline pipeline = ch.pipeline();
 
-        // SSL处理器（如果启用）  加密通信
+        // 配置SSL加密通信（如果启用）
         if (!ObjectUtils.isEmpty(sslContext)) {
             pipeline.addLast(sslContext.newHandler(ch.alloc()));
         }
@@ -139,10 +160,10 @@ public class NettyServerChannelInitializer extends ChannelInitializer<SocketChan
         // 用于处理大文件传输（如发送大图）  ===>WebSocket 基于帧（frame）协议，有边界，不存在粘包问题
         pipeline.addLast(new ChunkedWriteHandler());
 
-        // WebSocket 数据压缩（支持 permessage-deflate）
+        // WebSocket消息压缩处理器
         pipeline.addLast(new WebSocketServerCompressionHandler());
 
-        // WebSocket 协议升级处理器（核心）
+        // WebSocket协议升级和帧处理器
         pipeline.addLast(new WebSocketServerProtocolHandler(
                 properties.getServer().getPath(),  // WebSocket路径
                 null,                  // 子协议
@@ -153,18 +174,18 @@ public class NettyServerChannelInitializer extends ChannelInitializer<SocketChan
                 10000L                 // 握手超时时间
         ));
 
-        // 空闲状态处理器（心跳检测）
+        // 空闲连接检测（心跳机制）
         pipeline.addLast(new IdleStateHandler(
                 properties.getServer().getHeartbeatInterval(), // 读空闲时间
-                0,                                 // 写空闲时间
-                0,                                 // 读写空闲时间
+                0,                                             // 写空闲时间（不检测）
+                0,                                             // 读写空闲时间（不检测）
                 TimeUnit.SECONDS
         ));
 
-        // 自定义WebSocket处理器
+        // 业务逻辑处理器
         pipeline.addLast(nettyServerHandler);
 
-        log.debug("WebSocket管道初始化完成");
+        log.debug("WebSocket通道初始化完成: {}", ch.id());
     }
 }
 

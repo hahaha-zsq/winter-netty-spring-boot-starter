@@ -89,6 +89,11 @@ public class NettyProperties {
          * 服务端线程池配置
          */
         private ThreadProperties threadPool = new ThreadProperties();
+
+        /**
+         * 重试配置
+         */
+        private RetryProperties retry = new RetryProperties();
     }
 
     @Data
@@ -101,15 +106,51 @@ public class NettyProperties {
          * 是否启用 SSL（如需启用 TCP over TLS）
          */
         private boolean sslEnabled = false;
+
+        /**
+         * SSL证书路径（X.509格式）
+         */
+        private String sslCertPath;
+
+        /**
+         * SSL私钥路径（PKCS#8格式）
+         */
+        private String sslKeyPath;
+
+        /**
+         * SSL信任证书路径（用于验证服务器证书）
+         */
+        private String sslTrustCertPath;
+
         /**
          * 客户端连接端口
          */
         private int port = 8889;
 
         /**
+         * 最大重连次数
+         */
+        private int maxRetryAttempts = 3;
+
+        /**
+         * 重连延迟（秒）
+         */
+        private long reconnectDelay = 5;
+
+        /**
+         * 心跳间隔（秒）
+         */
+        private int heartbeatInterval = 30;
+
+        /**
          * 客户端线程池配置
          */
         private ThreadProperties threadPool = new ThreadProperties();
+
+        /**
+         * 重试配置
+         */
+        private RetryProperties retry = new RetryProperties();
     }
 
     @Data
@@ -151,5 +192,43 @@ public class NettyProperties {
          * 是否等待所有的任务结束后再关闭线程池(默认为true)
          */
         public Boolean waitForTasksToCompleteOnShutdown = true;
+    }
+
+    @Data
+    public static class RetryProperties {
+        /**
+         * 是否启用重试机制
+         */
+        private boolean enabled = true;
+
+        /**
+         * 最大重试次数，0表示无限重试
+         */
+        private int maxAttempts = 3;
+
+        /**
+         * 初始重试延迟时间（秒）
+         */
+        private long initialDelay = 1;
+
+        /**
+         * 最大重试延迟时间（秒）
+         */
+        private long maxDelay = 30;
+
+        /**
+         * 重试延迟时间的增长倍数
+         */
+        private double backoffMultiplier = 2.0;
+
+        /**
+         * 可重试的异常类型
+         */
+        @SuppressWarnings("unchecked")
+        private Class<? extends Exception>[] retryOn = new Class[]{
+                io.netty.channel.ChannelException.class,
+                java.net.BindException.class,
+                javax.net.ssl.SSLException.class
+        };
     }
 }

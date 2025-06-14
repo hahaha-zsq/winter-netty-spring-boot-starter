@@ -6,7 +6,7 @@ import io.netty.channel.Channel;
 /**
  * WebSocket消息业务处理服务接口
  */
-public interface NettyMessageService {
+public interface NettyServerMessageService {
 
     /**
      * 处理WebSocket消息

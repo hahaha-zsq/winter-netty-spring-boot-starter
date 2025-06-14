@@ -8,9 +8,12 @@ import com.zsq.winter.netty.core.server.NettyServer;
 import com.zsq.winter.netty.core.server.NettyServerChannelInitializer;
 import com.zsq.winter.netty.core.server.NettyServerChannelManager;
 import com.zsq.winter.netty.core.server.NettyServerHandler;
-import com.zsq.winter.netty.service.NettyMessageService;
-import com.zsq.winter.netty.service.NettyPushTemplate;
-import com.zsq.winter.netty.service.impl.DefaultNettyMessageServiceImpl;
+import com.zsq.winter.netty.service.NettyClientMessageService;
+import com.zsq.winter.netty.service.NettyServerMessageService;
+import com.zsq.winter.netty.service.NettyServerPushTemplate;
+import com.zsq.winter.netty.service.NettyClientPushTemplate;
+import com.zsq.winter.netty.service.impl.DefaultNettyClientMessageServiceImpl;
+import com.zsq.winter.netty.service.impl.DefaultNettyServerMessageServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -19,6 +22,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -61,112 +65,79 @@ public class NettyAutoConfiguration {
     }
 
     /**
-     * 创建WebSocket连接管理器Bean
-     * <p>
-     * 用于管理所有WebSocket连接（如添加、移除、广播消息等）。
+     * 创建服务端Channel管理器Bean
      */
-    @Bean("webSocketChannelManager")
+    @Bean("nettyServerChannelManager")
     @ConditionalOnProperty(prefix = "netty", name = "enableServer", havingValue = "true")
     @ConditionalOnMissingBean
-    public NettyServerChannelManager webSocketChannelManager() {
+    public NettyServerChannelManager nettyServerChannelManager() {
         return new NettyServerChannelManager();
     }
 
     /**
-     * 创建默认的消息业务处理服务Bean
-     * <p>
-     * 如果开发者没有自定义实现WebSocketMessageService接口，
-     * 则使用这个默认实现进行日志记录。
-     *
-     * @return DefaultWebSocketMessageServiceImpl 实例
+     * 创建默认的服务端消息处理服务Bean
      */
-    @Bean("webSocketMessageService")
-    @DependsOn("webSocketChannelManager")
+    @Bean("nettyServerMessageService")
     @ConditionalOnProperty(prefix = "netty", name = "enableServer", havingValue = "true")
     @ConditionalOnMissingBean
-    public NettyMessageService defaultWebSocketMessageService(NettyServerChannelManager nettyServerChannelManager) {
-        return new DefaultNettyMessageServiceImpl(nettyServerChannelManager);
+    @DependsOn("nettyServerChannelManager")
+    public NettyServerMessageService defaultNettyServerMessageService(
+            @Qualifier("nettyServerChannelManager") NettyServerChannelManager channelManager) {
+        return new DefaultNettyServerMessageServiceImpl(channelManager);
     }
 
     /**
-     * 创建WebSocket处理器Bean
-     * <p>
-     * 处理客户端发来的WebSocket消息，包含心跳、文本、私聊、广播等类型。
-     * 增加了对Jackson ObjectMapper的注入，以统一使用项目中的JSON配置。
-     *
-     * @param nettyServerChannelManager     管理WebSocket连接的组件
-     * @param nettyMessageService           消息业务处理服务
-     * @param winterNettyServerTaskExecutor 线程池
-     * @return WebSocketHandler 实例
+     * 创建服务端消息处理器Bean
      */
-    @Bean
-    @ConditionalOnMissingBean
+    @Bean("nettyServerHandler")
     @ConditionalOnProperty(prefix = "netty", name = "enableServer", havingValue = "true")
-    @DependsOn("webSocketMessageService")
-    public NettyServerHandler webSocketHandler(
-            NettyServerChannelManager nettyServerChannelManager,
-            NettyMessageService nettyMessageService,
-            ThreadPoolTaskExecutor winterNettyServerTaskExecutor) {
-        return new NettyServerHandler(nettyServerChannelManager, nettyMessageService, winterNettyServerTaskExecutor);
+    @ConditionalOnMissingBean
+    @DependsOn({"nettyServerMessageService", "winterNettyServerTaskExecutor"})
+    public NettyServerHandler nettyServerHandler(
+            @Qualifier("nettyServerChannelManager") NettyServerChannelManager channelManager,
+            @Qualifier("nettyServerMessageService") NettyServerMessageService messageService,
+            @Qualifier("winterNettyServerTaskExecutor") ThreadPoolTaskExecutor executor) {
+        return new NettyServerHandler(channelManager, messageService, executor);
     }
 
     /**
-     * 创建WebSocket管道初始化器Bean
-     * <p>
-     * 初始化Netty ChannelPipeline，添加必要的协议处理器：
-     * - HTTP编解码
-     * - WebSocket握手与帧处理
-     * - 心跳检测
-     * - 自定义消息处理器
-     *
-     * @param properties         WebSocket配置属性
-     * @param nettyServerHandler 自定义WebSocket处理器
-     * @return WebSocketChannelInitializer 实例
+     * 创建服务端管道初始化器Bean
      */
-    @Bean
-    @ConditionalOnMissingBean
+    @Bean("nettyServerChannelInitializer")
     @ConditionalOnProperty(prefix = "netty", name = "enableServer", havingValue = "true")
-    public NettyServerChannelInitializer webSocketChannelInitializer(
+    @ConditionalOnMissingBean
+    @DependsOn("nettyServerHandler")
+    public NettyServerChannelInitializer nettyServerChannelInitializer(
             NettyProperties properties,
-            NettyServerHandler nettyServerHandler) {
-        return new NettyServerChannelInitializer(properties, nettyServerHandler);
+            @Qualifier("nettyServerHandler") NettyServerHandler handler) {
+        return new NettyServerChannelInitializer(properties, handler);
     }
 
     /**
-     * 创建Netty WebSocket服务器Bean
-     * <p>
-     * 启动并运行Netty服务器，监听指定端口，处理WebSocket请求。
-     *
-     * @param properties         WebSocket配置属性
-     * @param channelInitializer 管道初始化器
-     * @return NettyWebSocketServer 实例
+     * 创建Netty服务器Bean
      */
-    @Bean
-    @ConditionalOnMissingBean
+    @Bean("nettyServer")
     @ConditionalOnProperty(prefix = "netty", name = "enableServer", havingValue = "true")
-    public NettyServer nettyWebSocketServer(
+    @ConditionalOnMissingBean
+    @DependsOn({"nettyServerChannelInitializer", "winterNettyServerTaskExecutor"})
+    public NettyServer nettyServer(
             NettyProperties properties,
-            NettyServerChannelInitializer channelInitializer,
-            ThreadPoolTaskExecutor winterNettyServerTaskExecutor) {
-        return new NettyServer(properties, channelInitializer, winterNettyServerTaskExecutor);
+            @Qualifier("nettyServerChannelInitializer") NettyServerChannelInitializer initializer,
+            @Qualifier("winterNettyServerTaskExecutor") ThreadPoolTaskExecutor executor) {
+        return new NettyServer(properties, initializer, executor);
     }
 
     /**
-     * 创建WebSocket消息推送服务Bean
-     * <p>
-     * 提供向指定用户或所有用户发送WebSocket消息的功能。
-     *
-     * @param nettyServerChannelManager 管理WebSocket连接的组件
-     * @return WebSocketPushService 实例
+     * 创建服务端消息推送服务Bean
      */
-    @Bean
-    @ConditionalOnMissingBean
-    @DependsOn("webSocketChannelManager")
+    @Bean("nettyServerPushTemplate")
     @ConditionalOnProperty(prefix = "netty", name = "enableServer", havingValue = "true")
-    public NettyPushTemplate webSocketPushService(NettyServerChannelManager nettyServerChannelManager) {
-        return new NettyPushTemplate(nettyServerChannelManager);
+    @ConditionalOnMissingBean
+    @DependsOn("nettyServerChannelManager")
+    public NettyServerPushTemplate nettyServerPushTemplate(
+            @Qualifier("nettyServerChannelManager") NettyServerChannelManager channelManager) {
+        return new NettyServerPushTemplate(channelManager);
     }
-
 
     @Bean("winterNettyClientTaskExecutor")
     @ConditionalOnMissingBean
@@ -188,30 +159,78 @@ public class NettyAutoConfiguration {
         return executor;
     }
 
-
-    @Bean
+    /**
+     * 创建客户端Channel管理器Bean
+     */
+    @Bean("nettyClientChannelManager")
     @ConditionalOnProperty(prefix = "netty", name = "enable-client", havingValue = "true")
     @ConditionalOnMissingBean
-    public NettyClientChannelManager webSocketClientManager() {
+    public NettyClientChannelManager nettyClientChannelManager() {
         return new NettyClientChannelManager();
     }
 
-    @Bean
+    /**
+     * 创建客户端消息处理服务Bean
+     */
+    @Bean("nettyClientMessageService")
     @ConditionalOnProperty(prefix = "netty", name = "enable-client", havingValue = "true")
     @ConditionalOnMissingBean
-    public NettyClientHandler webSocketClientHandler() {
-        return new NettyClientHandler();
+    @DependsOn("nettyClientChannelManager")
+    public NettyClientMessageService defaultNettyClientMessageService(
+            @Qualifier("nettyClientChannelManager") NettyClientChannelManager channelManager) {
+        return new DefaultNettyClientMessageServiceImpl(channelManager);
     }
 
-    @Bean
+    /**
+     * 创建客户端消息处理器Bean
+     */
+    @Bean("nettyClientHandler")
     @ConditionalOnProperty(prefix = "netty", name = "enable-client", havingValue = "true")
     @ConditionalOnMissingBean
-    public NettyClient nettyWebSocketClient(
+    @DependsOn({"nettyClientMessageService", "nettyClientChannelManager"})
+    public NettyClientHandler nettyClientHandler(
+            @Qualifier("nettyClientChannelManager") NettyClientChannelManager channelManager,
+            @Qualifier("nettyClientMessageService") NettyClientMessageService messageService,
+            @Qualifier("winterNettyClientTaskExecutor") ThreadPoolTaskExecutor executor) {
+        return new NettyClientHandler(channelManager, messageService,  executor);
+    }
+
+    /**
+     * 创建客户端管道初始化器Bean
+     */
+    @Bean("nettyClientChannelInitializer")
+    @ConditionalOnProperty(prefix = "netty", name = "enable-client", havingValue = "true")
+    @ConditionalOnMissingBean
+    @DependsOn("nettyClientHandler")
+    public NettyClientChannelInitializer nettyClientChannelInitializer(
             NettyProperties properties,
-            NettyClientChannelInitializer initializer,
-            ThreadPoolTaskExecutor winterNettyClientTaskExecutor) {
-        return new NettyClient(properties, initializer, winterNettyClientTaskExecutor);
+            @Qualifier("nettyClientHandler") NettyClientHandler handler) {
+        return new NettyClientChannelInitializer(handler, properties);
     }
 
+    /**
+     * 创建客户端Bean
+     */
+    @Bean("nettyClient")
+    @ConditionalOnProperty(prefix = "netty", name = "enable-client", havingValue = "true")
+    @ConditionalOnMissingBean
+    @DependsOn({"nettyClientChannelInitializer", "winterNettyClientTaskExecutor"})
+    public NettyClient nettyClient(
+            NettyProperties properties,
+            @Qualifier("nettyClientChannelInitializer") NettyClientChannelInitializer initializer,
+            @Qualifier("winterNettyClientTaskExecutor") ThreadPoolTaskExecutor executor) {
+        return new NettyClient(properties, initializer, executor);
+    }
 
+    /**
+     * 创建客户端消息发送模板Bean
+     */
+    @Bean("nettyClientTemplate")
+    @ConditionalOnProperty(prefix = "netty", name = "enable-client", havingValue = "true")
+    @ConditionalOnMissingBean
+    @DependsOn({"nettyClient", "nettyClientMessageService"})
+    public NettyClientPushTemplate nettyClientTemplate(
+            @Qualifier("nettyClientChannelManager") NettyClientChannelManager channelManager ) {
+        return new NettyClientPushTemplate(channelManager);
+    }
 }

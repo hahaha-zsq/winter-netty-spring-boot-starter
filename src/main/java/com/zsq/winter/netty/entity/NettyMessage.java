@@ -20,7 +20,8 @@ public class NettyMessage {
         HEARTBEAT,      // 心跳消息
         SYSTEM,         // 系统消息
         BROADCAST,      // 广播消息
-        PRIVATE         // 私聊消息
+        PRIVATE,        // 私聊消息
+        AUTH            // 认证消息
     }
 
     /**
@@ -56,15 +57,14 @@ public class NettyMessage {
     /**
      * 发送时间
      */
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime timestamp;
+    private Long timestamp;
 
     /**
      * 默认构造函数
      * 初始化消息的时间为当前时间
      */
     public NettyMessage() {
-        this.timestamp = LocalDateTime.now();
+        this.timestamp = System.currentTimeMillis();
     }
 
     /**
@@ -98,7 +98,11 @@ public class NettyMessage {
      * @return WebSocketMessage实例
      */
     public static NettyMessage text(String content) {
-        return new NettyMessage(MessageType.TEXT, content);
+        NettyMessage message = new NettyMessage();
+        message.setType(MessageType.TEXT);
+        message.setContent(content);
+        message.setTimestamp(System.currentTimeMillis());
+        return message;
     }
 
     /**
@@ -107,7 +111,11 @@ public class NettyMessage {
      * @return WebSocketMessage实例
      */
     public static NettyMessage heartbeat() {
-        return new NettyMessage(MessageType.HEARTBEAT, "ping");
+        NettyMessage message = new NettyMessage();
+        message.setType(MessageType.HEARTBEAT);
+        message.setContent("PING");
+        message.setTimestamp(System.currentTimeMillis());
+        return message;
     }
 
     /**
@@ -117,7 +125,11 @@ public class NettyMessage {
      * @return WebSocketMessage实例
      */
     public static NettyMessage system(String content) {
-        return new NettyMessage(MessageType.SYSTEM, content);
+        NettyMessage message = new NettyMessage();
+        message.setType(MessageType.SYSTEM);
+        message.setContent(content);
+        message.setTimestamp(System.currentTimeMillis());
+        return message;
     }
 
     /**
@@ -143,5 +155,29 @@ public class NettyMessage {
         NettyMessage message = new NettyMessage(MessageType.PRIVATE, fromUserId, content);
         message.setToUserId(toUserId);
         return message;
+    }
+
+    /**
+     * 创建认证消息
+     *
+     * @param userId 用户ID
+     * @return WebSocketMessage实例
+     */
+    public static NettyMessage auth(String userId) {
+        NettyMessage message = new NettyMessage();
+        message.setType(MessageType.AUTH);
+        message.setFromUserId(userId);
+        message.setContent("AUTH");
+        message.setTimestamp(System.currentTimeMillis());
+        return message;
+    }
+
+    /**
+     * 判断是否为心跳消息
+     *
+     * @return true表示是心跳消息，false表示不是
+     */
+    public boolean isHeartbeat() {
+        return MessageType.HEARTBEAT == this.type;
     }
 }
