@@ -63,7 +63,7 @@ public class NettyClientChannelManager {
         channels.add(channel);
         clientChannelMap.put(clientId, channel);
         channelClientMap.put(channel.id(), clientId);
-        log.info("客户端连接添加成功 - ID: {}, Channel: {}, 当前连接数: {}", 
+        log.info("客户端：连接添加成功 - 客户端唯一标识符ID: {}, Channel: {}, 当前连接数: {}",
                 clientId, channel.id(), channels.size());
     }
 
@@ -78,7 +78,7 @@ public class NettyClientChannelManager {
         if (channel != null) {
             channels.remove(channel);
             channelClientMap.remove(channel.id());
-            log.info("客户端连接移除 - ID: {}, Channel: {}, 当前连接数: {}", 
+            log.info("客户端：连接移除 - ID: {}, Channel: {}, 当前连接数: {}",
                     clientId, channel.id(), channels.size());
         }
     }
@@ -113,7 +113,7 @@ public class NettyClientChannelManager {
     public boolean sendToClient(String clientId, String message) {
         Channel channel = clientChannelMap.get(clientId);
         if (!ObjectUtils.isEmpty(channel) && channel.isActive()) {
-            channel.writeAndFlush(new TextWebSocketFrame(message));
+            channel.writeAndFlush(message);
             return true;
         }
         return false;
@@ -128,7 +128,7 @@ public class NettyClientChannelManager {
      */
     public boolean sendToChannel(Channel channel, String message) {
         if (!ObjectUtils.isEmpty(channel) && channel.isActive()) {
-            channel.writeAndFlush(new TextWebSocketFrame(message));
+            channel.writeAndFlush(message);
             return true;
         }
         return false;
@@ -140,8 +140,8 @@ public class NettyClientChannelManager {
      * @param message 要广播的消息内容
      */
     public void broadcast(String message) {
-        channels.writeAndFlush(new TextWebSocketFrame(message));
-        log.info("广播消息发送给 {} 个连接: {}", channels.size(), message);
+        channels.writeAndFlush(message);
+        log.info("客户端：广播消息发送给 {} 个连接: {}", channels.size(), message);
     }
 
     /**
@@ -154,8 +154,8 @@ public class NettyClientChannelManager {
         Channel excludeChannel = clientChannelMap.get(excludeClientId);
         channels.stream()
                 .filter(channel -> channel != excludeChannel && channel.isActive())
-                .forEach(channel -> channel.writeAndFlush(new TextWebSocketFrame(message)));
-        log.info("广播消息发送（排除客户端 {}）: {}", excludeClientId, message);
+                .forEach(channel -> channel.writeAndFlush(message));
+        log.info("客户端：广播消息发送（排除客户端 {}）: {}", excludeClientId, message);
     }
 
     /**

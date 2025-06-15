@@ -64,10 +64,12 @@ public class DefaultNettyServerMessageServiceImpl implements NettyServerMessageS
         log.info("用户断开连接 - 通道: {}", channel.id());
         String userId = channelManager.getChannelUser(channel.id());
         if (userId != null) {
-            channelManager.unbindUser(userId);
-            log.info("用户 {} 解绑成功", userId);
+            // 移除当前连接，但保留用户的其他连接
+            channelManager.removeChannel(channel);
+            log.info("用户 {} 断开连接，当前在线连接数: {}", userId, channelManager.getUserConnectionCount(userId));
+        } else {
+            channelManager.removeChannel(channel);
         }
-        channelManager.removeChannel(channel);
     }
 
     /**
@@ -77,12 +79,6 @@ public class DefaultNettyServerMessageServiceImpl implements NettyServerMessageS
         String userId = message.getFromUserId();
         if (userId == null || userId.trim().isEmpty()) {
             sendErrorMessage(channel, "认证失败：用户ID不能为空");
-            return;
-        }
-
-        // 检查用户ID是否已经被其他连接使用
-        if (channelManager.isUserOnline(userId)) {
-            sendErrorMessage(channel, "认证失败：该用户ID已在其他设备登录");
             return;
         }
 

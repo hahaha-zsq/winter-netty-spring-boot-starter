@@ -13,12 +13,9 @@ import org.springframework.util.ObjectUtils;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Netty WebSocket服务器
@@ -158,37 +155,21 @@ public class NettyServer {
      * 服务器启动的入口方法
      * 负责调用具体的启动逻辑，并处理启动过程中的异常
      */
-    private void doStart() {
-        try {
-            startServer();
-        } catch (Exception e) {
-            handleStartupFailure(e);
-        }
-    }
-
-    /**
-     * 服务器启动的核心逻辑
-     * 包含：
-     * 1. 服务器初始化
-     * 2. 异常重试机制
-     * 3. 资源清理
-     *
-     * @throws InterruptedException 当线程被中断时抛出
-     */
     private void startServer() throws InterruptedException {
         try {
             if (isShuttingDown.get()) {
-                log.info("服务器正在关闭，取消启动尝试");
+                log.info("服务端：服务器正在关闭，取消启动尝试");
                 return;
             }
 
             initializeServer();
+            // 手动表示任务成功完成
             startupFuture.complete(null);
             // 等待服务器关闭
             channelFuture.channel().closeFuture().sync();
 
         } catch (Exception e) {
-            log.error("Netty服务器启动失败", e);
+            log.error("服务端：服务器启动失败", e);
             startupFuture.completeExceptionally(e);
             throw e;
         } finally {
@@ -256,12 +237,12 @@ public class NettyServer {
      * @param workerThreads Worker线程组线程数
      */
     private void logServerStartup(int bossThreads, int workerThreads) {
-        log.info("Netty WebSocket服务器启动成功");
-        log.info("服务地址: {}://localhost:{}{}",
+        log.info("服务端：服务器启动成功");
+        log.info("服务端：服务地址: {}://localhost:{}{}",
                 properties.getServer().isSslEnabled() ? "wss" : "ws",
                 properties.getServer().getPort(),
                 properties.getServer().getPath());
-        log.info("Boss线程数: {}, Worker线程数: {}", bossThreads, workerThreads);
+        log.info("服务端：Boss线程数: {}, Worker线程数: {}", bossThreads, workerThreads);
     }
 
     /**
@@ -274,7 +255,7 @@ public class NettyServer {
      * @param e 启动过程中的异常
      */
     private void handleStartupFailure(Exception e) {
-        log.error("Netty服务器启动过程中发生致命错误", e);
+        log.error("服务端：服务器启动过程中发生致命错误", e);
         startupFuture.completeExceptionally(e);
         shutdownResources();
     }
@@ -292,18 +273,18 @@ public class NettyServer {
         if (channelFuture != null && channelFuture.channel().isActive()) {
             try {
                 channelFuture.channel().close().sync();
-                log.debug("ServerChannel 已关闭");
+                log.debug("服务端：ServerChannel 已关闭");
             } catch (Exception e) {
-                log.warn("关闭 ServerChannel 时发生异常", e);
+                log.warn("服务端：关闭 ServerChannel 时发生异常", e);
             }
         }
 
         if (workerGroup != null) {
             try {
                 workerGroup.shutdownGracefully(5, 10, TimeUnit.SECONDS).sync();
-                log.debug("WorkerGroup 线程组已关闭");
+                log.debug("服务端：WorkerGroup 线程组已关闭");
             } catch (InterruptedException e) {
-                log.warn("WorkerGroup 关闭被中断", e);
+                log.warn("服务端：WorkerGroup 关闭被中断", e);
                 Thread.currentThread().interrupt();
             }
         }
@@ -311,9 +292,9 @@ public class NettyServer {
         if (bossGroup != null) {
             try {
                 bossGroup.shutdownGracefully(5, 10, TimeUnit.SECONDS).sync();
-                log.debug("BossGroup 线程组已关闭");
+                log.debug("服务端：BossGroup 线程组已关闭");
             } catch (InterruptedException e) {
-                log.warn("BossGroup 关闭被中断", e);
+                log.warn("服务端：BossGroup 关闭被中断", e);
                 Thread.currentThread().interrupt();
             }
         }
@@ -326,9 +307,9 @@ public class NettyServer {
     @PreDestroy
     public void shutdown() {
         if (isShuttingDown.compareAndSet(false, true)) {
-            log.info("正在关闭Netty WebSocket服务器...");
+            log.info("服务端：正在关闭服务器...");
             shutdownResources();
-            log.info("Netty WebSocket服务器已关闭");
+            log.info("服务端：服务器已关闭");
         }
     }
 

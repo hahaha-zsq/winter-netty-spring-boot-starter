@@ -95,7 +95,7 @@ public class NettyClient {
     @PostConstruct
     public void start() {
         if (isRunning.get()) {
-            log.warn("Netty客户端已经在运行中");
+            log.warn("客户端：已经在运行中");
             return;
         }
         winterNettyClientTaskExecutor.execute(this::doStart);
@@ -109,7 +109,7 @@ public class NettyClient {
             initializeBootstrap();
             connect();
         } catch (Exception e) {
-            log.error("启动Netty客户端失败", e);
+            log.error("客户端：启动Netty失败", e);
             shutdown();
         }
     }
@@ -131,32 +131,39 @@ public class NettyClient {
      * 连接服务器
      */
     private void connect() {
+        // 检查系统是否正在关闭如果是，则不执行连接操作
         if (isShuttingDown.get()) {
             return;
         }
 
         try {
+            // 使用bootstrap尝试连接服务器
             ChannelFuture future = bootstrap.connect(
                     properties.getClient().getHost(),
                     properties.getClient().getPort()
             );
 
+            // 添加监听器以处理连接完成后的操作
             future.addListener((ChannelFutureListener) f -> {
                 if (f.isSuccess()) {
-                    log.info("连接服务器成功: {}:{}",
+                    // 如果连接成功，记录日志并更新通道状态
+                    log.info("客户端：连接服务器成功: {}:{}",
                             properties.getClient().getHost(),
                             properties.getClient().getPort());
                     channel = f.channel();
                     isRunning.set(true);
                 } else {
-                    log.warn("连接服务器失败");
+                    // 如果连接失败，记录警告日志
+                    log.warn("客户端：连接服务器失败");
                 }
             });
 
         } catch (Exception e) {
-            log.error("连接服务器时发生异常", e);
+            // 捕获并记录连接过程中发生的异常
+            log.error("客户端：连接服务器时发生异常", e);
         }
     }
+
 
     /**
      * 发送字符串消息
@@ -165,14 +172,14 @@ public class NettyClient {
      */
     public void sendMessage(String message) {
         if (!isRunning.get() || !isChannelActive()) {
-            log.warn("客户端未连接，无法发送消息");
+            log.warn("客户端：未连接，无法发送消息");
             return;
         }
 
         try {
             channel.writeAndFlush(message);
         } catch (Exception e) {
-            log.error("发送消息失败: {}", e.getMessage());
+            log.error("客户端：发送消息失败: {}", e.getMessage());
         }
     }
 
@@ -193,16 +200,16 @@ public class NettyClient {
     @PreDestroy
     public void shutdown() {
         if (isShuttingDown.compareAndSet(false, true)) {
-            log.info("正在关闭Netty客户端...");
+            log.info("客户端：正在关闭...");
             isRunning.set(false);
 
             // 关闭当前channel
             if (channel != null && channel.isActive()) {
                 try {
                     channel.close().sync();
-                    log.debug("Channel已关闭");
+                    log.debug("客户端：Channel已关闭");
                 } catch (InterruptedException e) {
-                    log.warn("关闭channel时被中断", e);
+                    log.warn("客户端：关闭channel时被中断", e);
                     Thread.currentThread().interrupt();
                 }
             }
@@ -211,14 +218,14 @@ public class NettyClient {
             if (group != null && !group.isShuttingDown()) {
                 try {
                     group.shutdownGracefully(5, 10, TimeUnit.SECONDS).sync();
-                    log.debug("EventLoopGroup已关闭");
+                    log.debug("客户端：EventLoopGroup已关闭");
                 } catch (InterruptedException e) {
-                    log.warn("关闭EventLoopGroup时被中断", e);
+                    log.warn("客户端：关闭EventLoopGroup时被中断", e);
                     Thread.currentThread().interrupt();
                 }
             }
 
-            log.info("Netty客户端已关闭");
+            log.info("客户端：Netty已关闭");
         }
     }
 

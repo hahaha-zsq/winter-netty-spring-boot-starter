@@ -22,7 +22,7 @@ public class DefaultNettyClientMessageServiceImpl implements NettyClientMessageS
 
     @Override
     public void handleMessage(Channel channel, NettyMessage message) {
-        log.info("处理服务器消息 - 通道: {}, 消息类型: {}, 内容: {}",
+        log.info("客户端：处理服务器消息 - 通道: {}, 消息类型: {}, 内容: {}",
                 channel.id(), message.getType(), message.getContent());
 
         try {
@@ -43,23 +43,23 @@ public class DefaultNettyClientMessageServiceImpl implements NettyClientMessageS
                     handlePrivateMessage(channel, message);
                     break;
                 default:
-                    log.warn("未知消息类型: {}", message.getType());
+                    log.warn("客户端：未知消息类型: {}", message.getType());
             }
         } catch (Exception e) {
-            log.error("处理服务器消息失败", e);
+            log.error("客户端：处理服务器消息失败", e);
         }
     }
 
     @Override
     public void onConnect(Channel channel) {
-        log.info("连接建立 - 通道: {}", channel.id());
+        log.info("客户端：连接建立 - 通道: {}", channel.id());
         NettyMessage connectMsg = NettyMessage.system("Connected to server");
         channel.writeAndFlush(JSONUtil.toJsonStr(connectMsg));
     }
 
     @Override
     public void onDisconnect(Channel channel) {
-        log.info("连接断开 - 通道: {}", channel.id());
+        log.info("客户端：连接断开 - 通道: {}", channel.id());
     }
 
 
@@ -68,7 +68,7 @@ public class DefaultNettyClientMessageServiceImpl implements NettyClientMessageS
      */
     private void handleTextMessage(Channel channel, NettyMessage message) {
         sendMessage(channel, message);
-        log.debug("处理文本消息，通道: {}", channel.id());
+        log.debug("客户端：处理文本消息，通道: {}", channel.id());
     }
 
 
@@ -81,28 +81,28 @@ public class DefaultNettyClientMessageServiceImpl implements NettyClientMessageS
         pong.setContent("pong");
         sendMessage(channel, pong);
 
-        log.debug("处理心跳消息，通道: {}", channel.id());
+        log.debug("客户端：处理心跳消息，通道: {}", channel.id());
     }
 
     /**
      * 处理系统消息
      */
     private void handleSystemMessage(Channel channel, NettyMessage message) {
-        log.info("收到系统消息: {}", message.getContent());
+        log.info("客户端：收到系统消息: {}", message.getContent());
     }
 
     /**
      * 处理广播消息
      */
     private void handleBroadcastMessage(Channel channel, NettyMessage message) {
-        log.info("处理广播消息: {}", message.getContent());
+        log.info("客户端：处理广播消息: {}", message.getContent());
     }
 
     /**
      * 处理私聊消息
      */
     private void handlePrivateMessage(Channel channel, NettyMessage message) {
-        log.info("处理私聊消息: {}", message.getContent());
+        log.info("客户端：处理私聊消息: {}", message.getContent());
     }
 
     /**
@@ -113,7 +113,7 @@ public class DefaultNettyClientMessageServiceImpl implements NettyClientMessageS
             String jsonMessage = JSONUtil.toJsonStr(message);
             channelManager.sendToChannel(channel, jsonMessage);
         } catch (Exception e) {
-            log.error("发送消息到通道失败", e);
+            log.error("客户端：发送消息到通道失败", e);
         }
     }
 
@@ -121,7 +121,7 @@ public class DefaultNettyClientMessageServiceImpl implements NettyClientMessageS
      * 发送错误消息
      */
     private void sendErrorMessage(Channel channel, String errorMsg) {
-        NettyMessage errorMessage = NettyMessage.system("错误: " + errorMsg);
+        NettyMessage errorMessage = NettyMessage.system("客户端：错误: " + errorMsg);
         sendMessage(channel, errorMessage);
     }
 } 

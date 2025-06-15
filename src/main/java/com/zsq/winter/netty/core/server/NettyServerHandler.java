@@ -1,6 +1,7 @@
 package com.zsq.winter.netty.core.server;
 
 import cn.hutool.json.JSONUtil;
+import com.zsq.winter.netty.autoconfigure.NettyProperties;
 import com.zsq.winter.netty.entity.NettyMessage;
 import com.zsq.winter.netty.service.NettyServerMessageService;
 import io.netty.channel.ChannelHandler;
@@ -61,6 +62,11 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
     private final ThreadPoolTaskExecutor executor;
 
     /**
+     * 心跳和连接配置参数
+     */
+    private final NettyProperties properties;
+
+    /**
      * 共享的定时任务执行器
      * 用于执行定时任务，如心跳检测、资源监控等
      * 使用守护线程，不阻止JVM退出
@@ -79,23 +85,6 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
     private final Map<ChannelId, ConnectionStats> connectionStats = new ConcurrentHashMap<>();
     
     /**
-     * 心跳和连接配置参数
-     */
-    private static final int MAX_MISSED_HEARTBEATS = 3;  // 最大允许的连续心跳丢失次数
-    private static final long HEARTBEAT_TIMEOUT_MS = 5000; // 心跳超时时间（毫秒）
-    private static final long BUSINESS_TIMEOUT_MS = 10000; // 业务操作超时时间（毫秒）
-    private static final long ZOMBIE_CONNECTION_TIMEOUT_MS = 30000; // 僵尸连接判定时间（毫秒）
-
-    /**
-     * 心跳和重试配置参数
-     */
-    private static final int HEARTBEAT_CHECK_INTERVAL = 30; // 心跳检查间隔（秒）
-    private static final int MAX_HEARTBEAT_MISS = 3; // 最大心跳丢失次数，超过此值将触发重连
-    private static final int INITIAL_RETRY_DELAY = 5; // 初始重试延迟（秒）
-    private static final int MAX_RETRY_DELAY = 60; // 最大重试延迟（秒）
-    private static final double BACKOFF_MULTIPLIER = 1.5; // 重试延迟增长系数，用于实现指数退避
-
-    /**
      * 连接统计信息内部类
      * 用于记录和统计单个连接的各项指标
      */
@@ -106,17 +95,20 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
         private final AtomicLong lastHeartbeatTime = new AtomicLong(0);          // 最后一次心跳时间
         private final AtomicLong lastDataTime = new AtomicLong(0);               // 最后一次数据接收时间
         private final AtomicLong lastBusinessCommandTime = new AtomicLong(0);    // 最后一次业务命令时间
-        private volatile int currentRetryDelay = INITIAL_RETRY_DELAY;             // 当前重试延迟
+        private volatile int currentRetryDelay;             // 当前重试延迟
         private volatile long totalLatency = 0;                                   // 总心跳延迟
         private volatile int connectionQuality = 100;                             // 连接质量（0-100）
         private volatile String lastBusinessCommand = "";                         // 最后执行的业务命令
         private volatile long resourceUsage = 0;                                 // 资源使用量
+        private final NettyProperties.ServerProperties serverConfig;
 
-        public ConnectionStats() {
+        public ConnectionStats(NettyProperties.ServerProperties serverConfig) {
             long now = System.currentTimeMillis();
             this.lastHeartbeatTime.set(now);
             this.lastDataTime.set(now);
             this.lastBusinessCommandTime.set(now);
+            this.currentRetryDelay = serverConfig.getInitialRetryDelay();
+            this.serverConfig = serverConfig;
         }
 
         /**
@@ -128,7 +120,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
             lastHeartbeatTime.set(System.currentTimeMillis());
             heartbeatsMissed.set(0);
             retryAttempt.set(0);
-            currentRetryDelay = INITIAL_RETRY_DELAY;
+            currentRetryDelay = calculateRetryDelay(retryAttempt.get());
         }
 
         /**
@@ -145,8 +137,9 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
          * 使用指数退避算法计算下一次重试的延迟时间
          */
         private int calculateRetryDelay(int attempt) {
-            double delay = INITIAL_RETRY_DELAY * Math.pow(BACKOFF_MULTIPLIER, attempt - 1);
-            return (int) Math.min(delay, MAX_RETRY_DELAY);
+            double delay = serverConfig.getInitialRetryDelay() * 
+                          Math.pow(serverConfig.getBackoffMultiplier(), attempt - 1);
+            return (int) Math.min(delay, serverConfig.getMaxRetryDelay());
         }
 
         /**
@@ -178,7 +171,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
          * 如果长时间没有收到任何数据，则认为是僵尸连接
          */
         public boolean isZombieConnection() {
-            return System.currentTimeMillis() - lastDataTime.get() > ZOMBIE_CONNECTION_TIMEOUT_MS;
+            return System.currentTimeMillis() - lastDataTime.get() > serverConfig.getZombieConnectionTimeoutMs();
         }
 
         /**
@@ -187,7 +180,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
          */
         public boolean isBusinessTimeout() {
             return !lastBusinessCommand.isEmpty() && 
-                   System.currentTimeMillis() - lastBusinessCommandTime.get() > BUSINESS_TIMEOUT_MS;
+                   System.currentTimeMillis() - lastBusinessCommandTime.get() > serverConfig.getBusinessTimeoutMs();
         }
 
         /**
@@ -195,7 +188,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
          * 基于心跳丢失次数判断
          */
         public boolean shouldDisconnect() {
-            return heartbeatsMissed.get() >= MAX_MISSED_HEARTBEATS;
+            return heartbeatsMissed.get() >= serverConfig.getMaxMissedHeartbeats();
         }
 
         /**
@@ -216,13 +209,16 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
      * @param channelManager WebSocket连接管理器
      * @param messageService 消息处理服务
      * @param executor 业务线程池
+     * @param properties 心跳和连接配置参数
      */
     public NettyServerHandler(NettyServerChannelManager channelManager,
                             @Qualifier("webSocketMessageService") NettyServerMessageService messageService,
-                            @Qualifier("winterNettyServerTaskExecutor") ThreadPoolTaskExecutor executor) {
+                            @Qualifier("winterNettyServerTaskExecutor") ThreadPoolTaskExecutor executor,
+                            NettyProperties properties) {
         this.channelManager = channelManager;
         this.messageService = messageService;
         this.executor = executor;
+        this.properties = properties;
     }
 
     /**
@@ -234,7 +230,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
      */
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
-        log.info("通道已注册: {}", ctx.channel().id());
+        log.info("服务端：通道已注册: {}", ctx.channel().id());
         super.channelRegistered(ctx);
     }
 
@@ -247,16 +243,12 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
      */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        // 初始化连接统计
-        ConnectionStats stats = new ConnectionStats();
+        ConnectionStats stats = new ConnectionStats(properties.getServer());
         connectionStats.put(ctx.channel().id(), stats);
-        
-        // 启动资源监控
         startResourceMonitoring(ctx.channel().id(), stats);
-        
         channelManager.addChannel(ctx.channel());
         messageService.onConnect(ctx.channel());
-        log.info("服务端连接建立: {}", ctx.channel().id());
+        log.info("服务端：连接建立: {}", ctx.channel().id());
     }
 
     /**
@@ -281,10 +273,10 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
         } else if (frame instanceof TextWebSocketFrame) {
             handleTextFrame(ctx, (TextWebSocketFrame) frame);
         } else if (frame instanceof CloseWebSocketFrame) {
-            log.info("收到关闭连接请求");
+            log.info("服务端：收到关闭连接请求");
             ctx.close();
         } else {
-            log.warn("收到未支持的消息类型: {}", frame.getClass().getSimpleName());
+            log.warn("服务端：收到未支持的消息类型: {}", frame.getClass().getSimpleName());
         }
     }
 
@@ -312,7 +304,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
      */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        log.error("WebSocket连接异常: {}", cause.getMessage(), cause);
+        log.error("服务端：WebSocket连接异常: {}", cause.getMessage(), cause);
         ctx.close();
     }
 
@@ -327,12 +319,12 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         ConnectionStats stats = connectionStats.remove(ctx.channel().id());
         if (stats != null) {
-            log.info("连接断开，最终统计: {}", stats.getStats());
+            log.info("服务端：连接断开，最终统计: {}", stats.getStats());
         }
         
         channelManager.removeChannel(ctx.channel());
         messageService.onDisconnect(ctx.channel());
-        log.info("WebSocket连接断开: {}", ctx.channel().id());
+        log.info("服务端：WebSocket连接断开: {}", ctx.channel().id());
     }
 
     /**
@@ -382,7 +374,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
         }
         // 回复Pong
         ctx.writeAndFlush(new PongWebSocketFrame(frame.content().retain()));
-        log.debug("回复PONG帧");
+        log.debug("服务端：回复PONG帧");
     }
 
     /**
@@ -395,7 +387,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
         ConnectionStats stats = connectionStats.get(ctx.channel().id());
         if (stats != null) {
             stats.recordHeartbeat();
-            log.debug("收到PONG帧，连接状态: {}", stats.getStats());
+            log.debug("服务端：收到PONG帧，连接状态: {}", stats.getStats());
         }
     }
 
@@ -408,7 +400,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
      */
     private void handleTextFrame(ChannelHandlerContext ctx, TextWebSocketFrame frame) {
         String text = frame.text();
-        log.debug("收到文本消息: {}", text);
+        log.debug("服务端：收到文本消息: {}", text);
         try {
             NettyMessage message = JSONUtil.toBean(text, NettyMessage.class);
             handleMessage(ctx, message);
@@ -427,29 +419,26 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
      */
     private void handleReaderIdle(ChannelHandlerContext ctx, ConnectionStats stats) {
         int missed = stats.heartbeatsMissed.incrementAndGet();
-        log.warn("读空闲超时，已丢失心跳次数: {}, {}", missed, stats.getStats());
+        log.warn("服务端：读空闲超时，已丢失心跳次数: {}, {}", missed, stats.getStats());
         
-        // 检查是否为僵尸连接
         if (stats.isZombieConnection()) {
-            log.error("检测到僵尸连接，关闭连接: {}", ctx.channel().id());
+            log.error("服务端：检测到僵尸连接，关闭连接: {}", ctx.channel().id());
             ctx.close();
             handleConnectionLost(ctx, stats);
             return;
         }
 
-        // 检查业务超时
         if (stats.isBusinessTimeout()) {
-            log.error("业务操作超时，最后命令: {}, 关闭连接: {}", 
+            log.error("服务端：业务操作超时，最后命令: {}, 关闭连接: {}", 
                     stats.lastBusinessCommand, ctx.channel().id());
             ctx.close();
             handleConnectionLost(ctx, stats);
             return;
         }
 
-        // 检查心跳丢失
-        if (stats.heartbeatsMissed.get() >= MAX_HEARTBEAT_MISS) {
-            log.error("连续{}次未收到心跳，关闭连接: {}", 
-                    MAX_HEARTBEAT_MISS, ctx.channel().id());
+        if (stats.heartbeatsMissed.get() >= properties.getServer().getMaxHeartbeatMiss()) {
+            log.error("服务端：连续{}次未收到心跳，关闭连接: {}", 
+                    properties.getServer().getMaxHeartbeatMiss(), ctx.channel().id());
             ctx.close();
             handleConnectionLost(ctx, stats);
         }
@@ -462,7 +451,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
      * @param ctx 通道上下文对象
      */
     private void handleWriterIdle(ChannelHandlerContext ctx) {
-        log.debug("写空闲，发送Ping");
+        log.debug("服务端：写空闲，发送Ping");
         ctx.writeAndFlush(new PingWebSocketFrame());
     }
 
@@ -476,8 +465,8 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
     private void handleAllIdle(ChannelHandlerContext ctx, ConnectionStats stats) {
         if (stats.lastHeartbeatTime.get() != 0) {
             Duration idleTime = Duration.between(Instant.ofEpochMilli(stats.lastHeartbeatTime.get()), Instant.now());
-            if (idleTime.toMillis() > HEARTBEAT_TIMEOUT_MS) {
-                log.warn("全部空闲超时，关闭连接: {}", ctx.channel().id());
+            if (idleTime.toMillis() > properties.getServer().getHeartbeatTimeoutMs()) {
+                log.warn("服务端：全部空闲超时，关闭连接: {}", ctx.channel().id());
                 ctx.close();
             }
         }
@@ -496,7 +485,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
                 messageService.handleMessage(ctx.channel(), message);
             });
         } catch (Exception e) {
-            log.error("处理WebSocket消息异常: {}", e.getMessage(), e);
+            log.error("服务端：处理WebSocket消息异常: {}", e.getMessage(), e);
             sendErrorMessage(ctx, "消息处理失败: " + e.getMessage());
         }
     }
@@ -527,7 +516,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
             String jsonMessage = JSONUtil.toJsonStr(message);
             ctx.writeAndFlush(new TextWebSocketFrame(jsonMessage));
         } catch (Exception e) {
-            log.error("发送消息失败: {}", e.getMessage(), e);
+            log.error("服务端：发送消息失败: {}", e.getMessage(), e);
         }
     }
 
@@ -550,7 +539,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
 
             // 检查资源使用是否超限
             if (memoryUsage > getMaxAllowedMemoryPerChannel()) {
-                log.warn("连接资源使用超限，channelId={}, 内存使用={}bytes", channelId, memoryUsage);
+                log.warn("服务端：连接资源使用超限，channelId={}, 内存使用={}bytes", channelId, memoryUsage);
                 // 可以在这里添加资源超限的处理逻辑
             }
         }, 0, 30, TimeUnit.SECONDS);
@@ -600,21 +589,21 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
                 return; // 如果连接已经恢复，不需要重试
             }
 
-            log.info("第{}次尝试重新建立连接，延迟: {}秒", stats.retryAttempt.get(), currentRetryDelay);
+            log.info("服务端：第{}次尝试重新建立连接，延迟: {}秒", stats.retryAttempt.get(), currentRetryDelay);
             
             try {
                 // 尝试重新建立连接
                 ctx.channel().connect(ctx.channel().remoteAddress()).addListener(future -> {
                     if (future.isSuccess()) {
-                        log.info("重新连接成功");
+                        log.info("服务端：重新连接成功");
                         stats.recordHeartbeat(); // 重置心跳和重试状态
                     } else {
-                        log.error("重新连接失败", future.cause());
+                        log.error("服务端：重新连接失败", future.cause());
                         handleConnectionLost(ctx, stats);
                     }
                 });
             } catch (Exception e) {
-                log.error("重新连接时发生异常", e);
+                log.error("服务端：重新连接时发生异常", e);
                 handleConnectionLost(ctx, stats);
             }
         }, currentRetryDelay, TimeUnit.SECONDS);

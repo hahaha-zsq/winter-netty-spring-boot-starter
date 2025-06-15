@@ -109,13 +109,13 @@ public class NettyServerChannelInitializer extends ChannelInitializer<SocketChan
             // 构建SSL上下文
             sslContext = SslContextBuilder.forServer(certFile, keyFile).build();
             // 记录日志信息
-            log.info("使用自定义SSL证书: {}", properties.getServer().getSslCertPath());
+            log.info("服务端：使用自定义SSL证书: {}", properties.getServer().getSslCertPath());
         } else {
             // 生成自签名证书
             SelfSignedCertificate ssc = new SelfSignedCertificate();
             sslContext = SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey()).build();
             // 记录警告信息，自签名证书仅用于开发测试
-            log.warn("使用自签名SSL证书，仅用于开发测试");
+            log.warn("服务端：使用自签名SSL证书，仅用于开发测试");
         }
     }
 
@@ -166,26 +166,26 @@ public class NettyServerChannelInitializer extends ChannelInitializer<SocketChan
         // WebSocket协议升级和帧处理器
         pipeline.addLast(new WebSocketServerProtocolHandler(
                 properties.getServer().getPath(),  // WebSocket路径
-                null,                  // 子协议
-                true,                  // 允许扩展
+                null,                              // 子协议
+                true,                              // 允许扩展
                 properties.getServer().getMaxFrameSize(), // 最大帧大小
-                false,                 // 允许mask
-                true,                  // 检查UTF8
-                10000L                 // 握手超时时间
+                false,                             // 允许mask
+                true,                              // 检查UTF8
+                properties.getServer().getHeartbeatTimeoutMs() // 握手超时时间
         ));
 
         // 空闲连接检测（心跳机制）
         pipeline.addLast(new IdleStateHandler(
                 properties.getServer().getHeartbeatInterval(), // 读空闲时间
-                0,                                             // 写空闲时间（不检测）
-                0,                                             // 读写空闲时间（不检测）
+                properties.getServer().getHeartbeatInterval(), // 写空闲时间
+                properties.getServer().getHeartbeatInterval(), // 读写空闲时间
                 TimeUnit.SECONDS
         ));
 
         // 业务逻辑处理器
         pipeline.addLast(nettyServerHandler);
 
-        log.debug("WebSocket通道初始化完成: {}", ch.id());
+        log.debug("服务端：WebSocket通道初始化完成: {}", ch.id());
     }
 }
 

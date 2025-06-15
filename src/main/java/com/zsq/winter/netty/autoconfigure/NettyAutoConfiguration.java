@@ -38,7 +38,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 public class NettyAutoConfiguration {
     @Bean("winterNettyServerTaskExecutor")
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "netty", name = "enableServer", havingValue = "true")
+    @ConditionalOnProperty(prefix = "netty", name = "enable-server", havingValue = "true")
     public ThreadPoolTaskExecutor winterNettyServerTaskExecutor(NettyProperties properties) {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         NettyProperties.ThreadProperties threadProps = properties.getServer().getThreadPool();
@@ -68,7 +68,7 @@ public class NettyAutoConfiguration {
      * 创建服务端Channel管理器Bean
      */
     @Bean("nettyServerChannelManager")
-    @ConditionalOnProperty(prefix = "netty", name = "enableServer", havingValue = "true")
+    @ConditionalOnProperty(prefix = "netty", name = "enable-server", havingValue = "true")
     @ConditionalOnMissingBean
     public NettyServerChannelManager nettyServerChannelManager() {
         return new NettyServerChannelManager();
@@ -78,7 +78,7 @@ public class NettyAutoConfiguration {
      * 创建默认的服务端消息处理服务Bean
      */
     @Bean("nettyServerMessageService")
-    @ConditionalOnProperty(prefix = "netty", name = "enableServer", havingValue = "true")
+    @ConditionalOnProperty(prefix = "netty", name = "enable-server", havingValue = "true")
     @ConditionalOnMissingBean
     @DependsOn("nettyServerChannelManager")
     public NettyServerMessageService defaultNettyServerMessageService(
@@ -90,7 +90,7 @@ public class NettyAutoConfiguration {
      * 创建服务端消息处理器Bean
      */
     @Bean("nettyServerHandler")
-    @ConditionalOnProperty(prefix = "netty", name = "enableServer", havingValue = "true")
+    @ConditionalOnProperty(prefix = "netty", name = "enable-server", havingValue = "true")
     @ConditionalOnMissingBean
     @DependsOn({"nettyServerMessageService", "winterNettyServerTaskExecutor"})
     public NettyServerHandler nettyServerHandler(
@@ -104,7 +104,7 @@ public class NettyAutoConfiguration {
      * 创建服务端管道初始化器Bean
      */
     @Bean("nettyServerChannelInitializer")
-    @ConditionalOnProperty(prefix = "netty", name = "enableServer", havingValue = "true")
+    @ConditionalOnProperty(prefix = "netty", name = "enable-server", havingValue = "true")
     @ConditionalOnMissingBean
     @DependsOn("nettyServerHandler")
     public NettyServerChannelInitializer nettyServerChannelInitializer(
@@ -117,7 +117,7 @@ public class NettyAutoConfiguration {
      * 创建Netty服务器Bean
      */
     @Bean("nettyServer")
-    @ConditionalOnProperty(prefix = "netty", name = "enableServer", havingValue = "true")
+    @ConditionalOnProperty(prefix = "netty", name = "enable-server", havingValue = "true")
     @ConditionalOnMissingBean
     @DependsOn({"nettyServerChannelInitializer", "winterNettyServerTaskExecutor"})
     public NettyServer nettyServer(
@@ -131,7 +131,7 @@ public class NettyAutoConfiguration {
      * 创建服务端消息推送服务Bean
      */
     @Bean("nettyServerPushTemplate")
-    @ConditionalOnProperty(prefix = "netty", name = "enableServer", havingValue = "true")
+    @ConditionalOnProperty(prefix = "netty", name = "enable-server", havingValue = "true")
     @ConditionalOnMissingBean
     @DependsOn("nettyServerChannelManager")
     public NettyServerPushTemplate nettyServerPushTemplate(

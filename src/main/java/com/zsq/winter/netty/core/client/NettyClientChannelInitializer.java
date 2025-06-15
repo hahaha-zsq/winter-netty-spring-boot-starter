@@ -89,7 +89,7 @@ public class NettyClientChannelInitializer extends ChannelInitializer<SocketChan
                             builder.trustManager(trustManagerFactory);
                         }
                     } else {
-                        log.warn("信任证书文件不存在: {}", trustCertFile.getAbsolutePath());
+                        log.warn("客户端：信任证书文件不存在: {}", trustCertFile.getAbsolutePath());
                     }
                 }
 
@@ -102,15 +102,15 @@ public class NettyClientChannelInitializer extends ChannelInitializer<SocketChan
                     if (certFile.exists() && keyFile.exists()) {
                         builder.keyManager(certFile, keyFile);
                     } else {
-                        log.warn("客户端证书或私钥文件不存在: cert={}, key={}", 
+                        log.warn("客户端：证书或私钥文件不存在: cert={}, key={}",
                                 certFile.getAbsolutePath(), keyFile.getAbsolutePath());
                     }
                 }
 
                 sslContext = builder.build();
-                log.info("SSL上下文初始化成功");
+                log.info("客户端：SSL上下文初始化成功");
             } catch (Exception e) {
-                log.error("SSL上下文初始化失败", e);
+                log.error("客户端：SSL上下文初始化失败", e);
                 throw new RuntimeException("Failed to initialize SSL context", e);
             }
         }
@@ -130,10 +130,10 @@ public class NettyClientChannelInitializer extends ChannelInitializer<SocketChan
         // 配置SSL（如果启用）
         if (properties.getClient().isSslEnabled() && sslContext != null) {
             pipeline.addLast(sslContext.newHandler(ch.alloc()));
-            log.debug("已添加SSL处理器到管道");
+            log.debug("客户端：已添加SSL处理器到管道");
         }
 
-        // 心跳检测处理器
+        // 心跳检测处理器，用于检测连接是否存活，防止连接假死
         // 当指定时间内没有读写操作时，会触发IdleStateEvent事件
         pipeline.addLast(new IdleStateHandler(
                 properties.getClient().getHeartbeatInterval(), // 读空闲时间
@@ -144,8 +144,8 @@ public class NettyClientChannelInitializer extends ChannelInitializer<SocketChan
 
         // 字符串编解码器
         // 将ByteBuf转换为String，或将String转换为ByteBuf
-        pipeline.addLast(new StringDecoder(CharsetUtil.UTF_8));  // 入站消息解码器
-        pipeline.addLast(new StringEncoder(CharsetUtil.UTF_8));  // 出站消息编码器
+        pipeline.addLast(new StringDecoder(CharsetUtil.UTF_8));  // 入站消息解码器，网络数据（ByteBuf）→ StringDecoder → String类型消息
+        pipeline.addLast(new StringEncoder(CharsetUtil.UTF_8));  // 出站消息编码器，String类型消息 → StringEncoder → 网络数据（ByteBuf）
 
         // 自定义业务处理器
         // 处理实际的业务逻辑，如接收消息、发送心跳等
