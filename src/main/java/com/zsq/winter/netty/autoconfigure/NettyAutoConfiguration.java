@@ -96,8 +96,9 @@ public class NettyAutoConfiguration {
     public NettyServerHandler nettyServerHandler(
             @Qualifier("nettyServerChannelManager") NettyServerChannelManager channelManager,
             @Qualifier("nettyServerMessageService") NettyServerMessageService messageService,
-            @Qualifier("winterNettyServerTaskExecutor") ThreadPoolTaskExecutor executor) {
-        return new NettyServerHandler(channelManager, messageService, executor);
+            @Qualifier("winterNettyServerTaskExecutor") ThreadPoolTaskExecutor executor,
+            NettyProperties properties) {
+        return new NettyServerHandler(channelManager, messageService, executor, properties);
     }
 
     /**
@@ -191,8 +192,9 @@ public class NettyAutoConfiguration {
     public NettyClientHandler nettyClientHandler(
             @Qualifier("nettyClientChannelManager") NettyClientChannelManager channelManager,
             @Qualifier("nettyClientMessageService") NettyClientMessageService messageService,
-            @Qualifier("winterNettyClientTaskExecutor") ThreadPoolTaskExecutor executor) {
-        return new NettyClientHandler(channelManager, messageService,  executor);
+            @Qualifier("winterNettyClientTaskExecutor") ThreadPoolTaskExecutor executor,
+            NettyProperties properties) {
+        return new NettyClientHandler(channelManager, messageService, executor, properties);
     }
 
     /**
