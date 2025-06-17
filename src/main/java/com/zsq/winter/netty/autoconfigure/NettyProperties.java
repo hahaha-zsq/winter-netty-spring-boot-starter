@@ -81,7 +81,7 @@ public class NettyProperties {
         private long zombieConnectionTimeoutMs = 30000;
 
         /**
-         * 最大心跳丢失次数，超过此值将触发重连
+         * 最大心跳丢失次数，超过此值将关闭连接
          */
         private int maxHeartbeatMiss = 3;
 
@@ -203,7 +203,7 @@ public class NettyProperties {
         private long zombieConnectionTimeoutMs = 30000;
 
         /**
-         * 最大心跳丢失次数，超过此值将触发重连
+         * 最大心跳丢失次数，超过此值将关闭连接
          */
         private int maxHeartbeatMiss = 3;
 

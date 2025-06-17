@@ -441,6 +441,7 @@ public class NettyClientHandler extends SimpleChannelInboundHandler<String> {
      * 处理心跳检测
      * <p>
      * 发送心跳包并更新统计信息。
+     * <p>
      * 检测流程：
      * 1. 检查上次心跳响应情况
      * 2. 更新心跳丢失计数

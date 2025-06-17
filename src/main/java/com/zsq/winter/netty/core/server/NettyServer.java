@@ -21,23 +21,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Netty WebSocket服务器
  * <p>
  * 该类是整个WebSocket服务器的核心类，负责以下功能：
- * 1. 服务器的启动和关闭：包括优雅启动、自动重试和优雅关闭
+ * 1. 服务器的启动和关闭：包括优雅启动和优雅关闭
  * 2. 管理服务器线程组：包括Boss线程组（接收连接）和Worker线程组（处理IO）
  * 3. 配置服务器启动参数：包括端口、线程数、TCP参数等
  * 4. 集成Spring生命周期：通过@PostConstruct和@PreDestroy注解
- * 5. 服务器异常重试机制：支持可配置的重试策略
  * <p>
  * 核心组件说明：
  * - Boss线程组：负责接收客户端的连接请求，类似于传统BIO中的接收线程
  * - Worker线程组：负责处理已连接客户端的数据读写，用于处理IO事件
  * - ChannelFuture：Netty中的异步操作结果占位符，用于异步操作的结果获取
  * - ServerBootstrap：服务器启动引导类，用于配置服务器参数并启动服务
- * <p>
- * 重试机制说明：
- * - 支持配置最大重试次数
- * - 支持配置重试间隔时间
- * - 支持配置重试时间的指数增长
- * - 支持配置触发重试的异常类型
  */
 @Slf4j
 public class NettyServer {
@@ -47,7 +40,6 @@ public class NettyServer {
      * 包含以下核心配置：
      * - 服务器端口
      * - Boss和Worker线程数
-     * - 重试策略配置
      * - SSL配置
      * - WebSocket路径配置
      */
@@ -97,7 +89,7 @@ public class NettyServer {
      * 服务器关闭标志
      * 使用AtomicBoolean保证线程安全
      * true表示服务器正在关闭，用于：
-     * 1. 防止服务关闭过程中继续尝试重试
+     * 1. 防止服务关闭过程中继续尝试启动
      * 2. 确保优雅关闭
      */
     private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
