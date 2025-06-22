@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * WebSocket 配置属性（区分客户端与服务端线程池）
  */
 @Data
-@ConfigurationProperties(prefix = "netty")
+@ConfigurationProperties(prefix = "winter-netty")
 public class NettyProperties {
     /**
      * 是否启用 服务端组件

@@ -105,7 +105,11 @@ public class DefaultNettyServerMessageServiceImpl implements NettyServerMessageS
 
         // 处理文本消息
         log.info("处理文本消息 - 用户: {}, 内容: {}", userId, message.getContent());
-        // 这里可以添加具体的业务逻辑
+        
+        // 发送确认消息
+        NettyMessage response = NettyMessage.text("服务器已收到消息：" + message.getContent());
+        response.setFromUserId("server");
+        sendMessage(channel, response);
     }
 
     /**

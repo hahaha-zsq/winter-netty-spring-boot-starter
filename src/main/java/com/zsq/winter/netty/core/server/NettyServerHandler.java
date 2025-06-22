@@ -212,7 +212,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
      * @param properties 心跳和连接配置参数
      */
     public NettyServerHandler(NettyServerChannelManager channelManager,
-                            @Qualifier("webSocketMessageService") NettyServerMessageService messageService,
+                            @Qualifier("nettyServerMessageService") NettyServerMessageService messageService,
                             @Qualifier("winterNettyServerTaskExecutor") ThreadPoolTaskExecutor executor,
                             NettyProperties properties) {
         this.channelManager = channelManager;
@@ -400,11 +400,14 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
      */
     private void handleTextFrame(ChannelHandlerContext ctx, TextWebSocketFrame frame) {
         String text = frame.text();
-        log.debug("服务端：收到文本消息: {}", text);
+        log.info("服务端：收到文本消息: {}", text);
         try {
             NettyMessage message = JSONUtil.toBean(text, NettyMessage.class);
+            log.info("服务端：解析后的消息对象: type={}, content={}, fromUserId={}", 
+                    message.getType(), message.getContent(), message.getFromUserId());
             handleMessage(ctx, message);
         } catch (Exception e) {
+            log.error("服务端：消息解析失败: {}", e.getMessage(), e);
             NettyMessage message = NettyMessage.text(text);
             handleMessage(ctx, message);
         }
