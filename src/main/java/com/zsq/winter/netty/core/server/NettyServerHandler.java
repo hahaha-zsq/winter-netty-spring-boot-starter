@@ -91,7 +91,6 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
     private static class ConnectionStats {
         private final AtomicInteger heartbeatsReceived = new AtomicInteger(0);    // 已接收的心跳数
         private final AtomicInteger heartbeatsMissed = new AtomicInteger(0);      // 丢失的心跳数
-        private final AtomicInteger retryAttempt = new AtomicInteger(0);          // 重试次数
         private final AtomicLong lastHeartbeatTime = new AtomicLong(0);          // 最后一次心跳时间
         private final AtomicLong lastDataTime = new AtomicLong(0);               // 最后一次数据接收时间
         private final AtomicLong lastBusinessCommandTime = new AtomicLong(0);    // 最后一次业务命令时间
@@ -107,7 +106,6 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
             this.lastHeartbeatTime.set(now);
             this.lastDataTime.set(now);
             this.lastBusinessCommandTime.set(now);
-            this.currentRetryDelay = serverConfig.getInitialRetryDelay();
             this.serverConfig = serverConfig;
         }
 
@@ -119,27 +117,6 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
             heartbeatsReceived.incrementAndGet();
             lastHeartbeatTime.set(System.currentTimeMillis());
             heartbeatsMissed.set(0);
-            retryAttempt.set(0);
-            currentRetryDelay = calculateRetryDelay(retryAttempt.get());
-        }
-
-        /**
-         * 增加重试次数
-         * 更新重试次数并计算新的重试延迟
-         */
-        public void incrementRetryAttempt() {
-            int attempt = retryAttempt.incrementAndGet();
-            currentRetryDelay = calculateRetryDelay(attempt);
-        }
-
-        /**
-         * 计算重试延迟
-         * 使用指数退避算法计算下一次重试的延迟时间
-         */
-        private int calculateRetryDelay(int attempt) {
-            double delay = serverConfig.getInitialRetryDelay() * 
-                          Math.pow(serverConfig.getBackoffMultiplier(), attempt - 1);
-            return (int) Math.min(delay, serverConfig.getMaxRetryDelay());
         }
 
         /**
@@ -427,7 +404,6 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
         if (stats.isZombieConnection()) {
             log.error("服务端：检测到僵尸连接，关闭连接: {}", ctx.channel().id());
             ctx.close();
-            handleConnectionLost(ctx, stats);
             return;
         }
 
@@ -435,7 +411,6 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
             log.error("服务端：业务操作超时，最后命令: {}, 关闭连接: {}", 
                     stats.lastBusinessCommand, ctx.channel().id());
             ctx.close();
-            handleConnectionLost(ctx, stats);
             return;
         }
 
@@ -443,7 +418,6 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
             log.error("服务端：连续{}次未收到心跳，关闭连接: {}", 
                     properties.getServer().getMaxHeartbeatMiss(), ctx.channel().id());
             ctx.close();
-            handleConnectionLost(ctx, stats);
         }
     }
 
@@ -569,46 +543,5 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
     private long getMaxAllowedMemoryPerChannel() {
         // 返回每个连接允许的最大内存使用量
         return 10 * 1024 * 1024; // 示例：10MB
-    }
-
-    /**
-     * 处理连接丢失
-     * 实现断线重连逻辑，使用指数退避策略
-     *
-     * @param ctx 通道上下文对象
-     * @param stats 连接统计对象
-     */
-    private void handleConnectionLost(ChannelHandlerContext ctx, ConnectionStats stats) {
-        if (ctx.channel() == null || !ctx.channel().isActive()) {
-            return;
-        }
-
-        stats.incrementRetryAttempt();
-        int currentRetryDelay = stats.currentRetryDelay;
-
-        // 使用ctx.executor()来调度重连，这样可以确保在正确的EventLoop中执行
-        ctx.executor().schedule(() -> {
-            if (ctx.channel().isActive()) {
-                return; // 如果连接已经恢复，不需要重试
-            }
-
-            log.info("服务端：第{}次尝试重新建立连接，延迟: {}秒", stats.retryAttempt.get(), currentRetryDelay);
-            
-            try {
-                // 尝试重新建立连接
-                ctx.channel().connect(ctx.channel().remoteAddress()).addListener(future -> {
-                    if (future.isSuccess()) {
-                        log.info("服务端：重新连接成功");
-                        stats.recordHeartbeat(); // 重置心跳和重试状态
-                    } else {
-                        log.error("服务端：重新连接失败", future.cause());
-                        handleConnectionLost(ctx, stats);
-                    }
-                });
-            } catch (Exception e) {
-                log.error("服务端：重新连接时发生异常", e);
-                handleConnectionLost(ctx, stats);
-            }
-        }, currentRetryDelay, TimeUnit.SECONDS);
     }
 }

@@ -86,21 +86,6 @@ public class NettyProperties {
         private int maxHeartbeatMiss = 3;
 
         /**
-         * 初始重试延迟（秒）
-         */
-        private int initialRetryDelay = 5;
-
-        /**
-         * 最大重试延迟（秒）
-         */
-        private int maxRetryDelay = 60;
-
-        /**
-         * 重试延迟增长系数，用于实现指数退避
-         */
-        private double backoffMultiplier = 1.5;
-
-        /**
          * Boss线程数
          */
         private int bossThreads = 1;
@@ -129,11 +114,6 @@ public class NettyProperties {
          * 服务端线程池配置
          */
         private ThreadProperties threadPool = new ThreadProperties();
-
-        /**
-         * 重试配置
-         */
-        private RetryProperties retry = new RetryProperties();
     }
 
     @Data

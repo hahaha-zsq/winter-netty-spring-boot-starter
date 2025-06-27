@@ -83,6 +83,152 @@ public class NettyServerPushTemplate {
     }
 
     /**
+     * 向指定用户发送消息（同步方式）
+     *
+     * @param userId 目标用户ID
+     * @param content 消息内容
+     * @return 发送成功的连接数量，0表示发送失败
+     */
+    public int pushMessageToUser(String userId, String content) {
+        try {
+            if (!channelManager.isUserOnline(userId)) {
+                log.warn("用户 {} 不在线，消息发送失败", userId);
+                return 0;
+            }
+            
+            NettyMessage message = NettyMessage.text(content);
+            message.setMessageId(UUID.randomUUID().toString());
+            message.setToUserId(userId);
+            message.setFromUserId("system");
+            
+            String jsonMessage = JSONUtil.toJsonStr(message);
+            int sentCount = channelManager.sendToUser(userId, jsonMessage);
+            
+            if (sentCount > 0) {
+                log.info("向用户 {} 发送消息成功，发送到 {} 个连接", userId, sentCount);
+            } else {
+                log.warn("向用户 {} 发送消息失败，没有活跃连接", userId);
+            }
+            
+            return sentCount;
+        } catch (Exception e) {
+            log.error("向用户 {} 发送消息失败: {}", userId, e.getMessage(), e);
+            return 0;
+        }
+    }
+
+    /**
+     * 向指定用户发送消息（异步方式）
+     *
+     * @param userId 目标用户ID
+     * @param content 消息内容
+     * @return 包含发送结果的Future对象，结果为发送成功的连接数量
+     */
+    public CompletableFuture<Integer> pushMessageToUserAsync(String userId, String content) {
+        CompletableFuture<Integer> future = new CompletableFuture<>();
+        try {
+            if (!channelManager.isUserOnline(userId)) {
+                log.warn("用户 {} 不在线，异步消息发送失败", userId);
+                future.complete(0);
+                return future;
+            }
+            
+            NettyMessage message = NettyMessage.text(content);
+            message.setMessageId(UUID.randomUUID().toString());
+            message.setToUserId(userId);
+            message.setFromUserId("system");
+            
+            String jsonMessage = JSONUtil.toJsonStr(message);
+            int sentCount = channelManager.sendToUser(userId, jsonMessage);
+            
+            if (sentCount > 0) {
+                log.info("异步向用户 {} 发送消息成功，发送到 {} 个连接", userId, sentCount);
+            } else {
+                log.warn("异步向用户 {} 发送消息失败，没有活跃连接", userId);
+            }
+            
+            future.complete(sentCount);
+        } catch (Exception e) {
+            log.error("异步向用户 {} 发送消息失败: {}", userId, e.getMessage(), e);
+            future.completeExceptionally(e);
+        }
+        return future;
+    }
+
+    /**
+     * 向指定用户发送系统消息（同步方式）
+     *
+     * @param userId 目标用户ID
+     * @param content 消息内容
+     * @return 发送成功的连接数量，0表示发送失败
+     */
+    public int pushSystemMessageToUser(String userId, String content) {
+        try {
+            if (!channelManager.isUserOnline(userId)) {
+                log.warn("用户 {} 不在线，系统消息发送失败", userId);
+                return 0;
+            }
+            
+            NettyMessage message = NettyMessage.system(content);
+            message.setMessageId(UUID.randomUUID().toString());
+            message.setToUserId(userId);
+            message.setFromUserId("system");
+            
+            String jsonMessage = JSONUtil.toJsonStr(message);
+            int sentCount = channelManager.sendToUser(userId, jsonMessage);
+            
+            if (sentCount > 0) {
+                log.info("向用户 {} 发送系统消息成功，发送到 {} 个连接", userId, sentCount);
+            } else {
+                log.warn("向用户 {} 发送系统消息失败，没有活跃连接", userId);
+            }
+            
+            return sentCount;
+        } catch (Exception e) {
+            log.error("向用户 {} 发送系统消息失败: {}", userId, e.getMessage(), e);
+            return 0;
+        }
+    }
+
+    /**
+     * 向指定用户发送系统消息（异步方式）
+     *
+     * @param userId 目标用户ID
+     * @param content 消息内容
+     * @return 包含发送结果的Future对象，结果为发送成功的连接数量
+     */
+    public CompletableFuture<Integer> pushSystemMessageToUserAsync(String userId, String content) {
+        CompletableFuture<Integer> future = new CompletableFuture<>();
+        try {
+            if (!channelManager.isUserOnline(userId)) {
+                log.warn("用户 {} 不在线，异步系统消息发送失败", userId);
+                future.complete(0);
+                return future;
+            }
+            
+            NettyMessage message = NettyMessage.system(content);
+            message.setMessageId(UUID.randomUUID().toString());
+            message.setToUserId(userId);
+            message.setFromUserId("system");
+            
+            String jsonMessage = JSONUtil.toJsonStr(message);
+            int sentCount = channelManager.sendToUser(userId, jsonMessage);
+            
+            if (sentCount > 0) {
+                log.info("异步向用户 {} 发送系统消息成功，发送到 {} 个连接", userId, sentCount);
+            } else {
+                log.warn("异步向用户 {} 发送系统消息失败，没有活跃连接", userId);
+            }
+            
+            future.complete(sentCount);
+        } catch (Exception e) {
+            log.error("异步向用户 {} 发送系统消息失败: {}", userId, e.getMessage(), e);
+            future.completeExceptionally(e);
+        }
+        return future;
+    }
+
+    /**
      * 向指定Channel发送系统消息（同步方式）
      *
      * @param channel 目标Channel

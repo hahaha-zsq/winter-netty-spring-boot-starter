@@ -163,36 +163,6 @@ public class NettyClient {
             log.error("客户端：连接服务器时发生异常", e);
         }
     }
-
-
-    /**
-     * 发送字符串消息
-     *
-     * @param message 要发送的消息内容
-     */
-    public void sendMessage(String message) {
-        if (!isRunning.get() || !isChannelActive()) {
-            log.warn("客户端：未连接，无法发送消息");
-            return;
-        }
-
-        try {
-            channel.writeAndFlush(message);
-        } catch (Exception e) {
-            log.error("客户端：发送消息失败: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * 发送NettyMessage对象
-     * 会自动将对象转换为JSON字符串
-     *
-     * @param message NettyMessage对象
-     */
-    public void sendMessage(NettyMessage message) {
-        sendMessage(JSONUtil.toJsonStr(message));
-    }
-
     /**
      * 关闭Netty客户端
      * Spring容器销毁时自动调用
