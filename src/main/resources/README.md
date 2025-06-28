@@ -2,8 +2,7 @@
 ```mermaid
 graph TD
     A[Spring容器启动] -->|@PostConstruct| B[NettyServer.start]
-    B -->|异步执行| C[NettyServer.doStart]
-    C -->|调用| D[NettyServer.startServer]
+    B -->|调用| D[NettyServer.startServer]
     
     D -->|初始化| E[NettyServer.initializeServer]
     
@@ -32,15 +31,12 @@ graph TD
     I -->|3.2| I2[等待绑定完成]
     
     E -->|4| J[启动完成处理]
-    J -->|4.1| J1[重置重试计数]
-    J -->|4.2| J2[完成startupFuture]
-    J -->|4.3| J3[输出启动日志]
-    
+    J -->|4.1| J1[完成startupFuture]
+    J -->|4.2| J2[输出启动日志]
+
     K[异常处理机制]
     D -->|异常发生| K
-    K -->|重试条件满足| L[重试处理]
-    L -->|延迟等待| D
-    K -->|重试条件不满足| M[启动失败处理]
+    K -->|处理异常| M[启动失败处理]
     
     N[优雅关闭机制]
     N -->|1| N1[关闭ServerChannel]
@@ -58,119 +54,238 @@ graph TD
 Pipeline 配置流程：
 ```mermaid
 graph TD
-    subgraph Pipeline配置流程
-        A[NettyServerChannelInitializer] -->|初始化Pipeline| B[配置处理器链]
-        
-        subgraph 基础协议层
-            B -->|1| C1[SSL处理器<br>SslHandler]
-            B -->|2| C2[HTTP编解码器<br>HttpServerCodec]
-            B -->|3| C3[HTTP消息聚合器<br>HttpObjectAggregator]
-        end
-        
-        subgraph WebSocket协议层
-            C3 -->|4| D1[大文件处理器<br>ChunkedWriteHandler]
-            D1 -->|5| D2[WebSocket压缩处理器<br>WebSocketServerCompressionHandler]
-            D2 -->|6| D3[WebSocket协议处理器<br>WebSocketServerProtocolHandler]
-        end
-        
-        subgraph 应用层
-            D3 -->|7| E1[心跳检测处理器<br>IdleStateHandler]
-            E1 -->|8| E2[业务逻辑处理器<br>NettyServerHandler]
-        end
-        
-        subgraph 处理器说明
-            F1[基础协议层]---|处理HTTP升级请求|F2[WebSocket协议层]
-            F2---|处理WebSocket帧|F3[应用层]
-        end
-    end
+   subgraph "Pipeline配置流程"
+      A[NettyServerChannelInitializer] -->|initChannel方法| B[创建处理器链]
 
-    classDef protocolLayer fill:#f0f0f0,stroke:#333,stroke-width:2px;
-    class 基础协议层,WebSocket协议层,应用层 protocolLayer;
-    
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style E2 fill:#bfb,stroke:#333,stroke-width:2px
+      B -->|条件判断| C{是否启用SSL}
+
+      C -->|是| D1["添加SslHandler<br>SSL加密传输层"]
+      C -->|否| D2["跳过SSL配置"]
+
+      D1 -->|添加| E["HttpServerCodec<br>HTTP编解码器"]
+      D2 -->|添加| E
+
+      E -->|添加| F["HttpObjectAggregator<br>HTTP消息聚合器<br>解决半包问题"]
+      F -->|添加| G["ChunkedWriteHandler<br>大文件传输处理器"]
+
+      G -->|添加| H["WebSocketServerCompressionHandler<br>WebSocket消息压缩"]
+      H -->|添加| I["WebSocketServerProtocolHandler<br>WebSocket协议处理<br>路径: properties.getServer().getPath()"]
+
+      I -->|添加| J["IdleStateHandler<br>心跳检测<br>读空闲: heartbeatInterval<br>写空闲: heartbeatInterval<br>全部空闲: heartbeatInterval"]
+
+      J -->|添加| K["NettyServerHandler<br>业务逻辑处理器"]
+
+      subgraph "处理器职责说明"
+         P1["SslHandler: 加密/解密通信数据"]
+         P2["HttpServerCodec: HTTP请求解码/响应编码"]
+         P3["HttpObjectAggregator: 合并HTTP消息片段"]
+         P4["ChunkedWriteHandler: 支持大文件传输"]
+         P5["WebSocketServerCompressionHandler: 减少传输数据量"]
+         P6["WebSocketServerProtocolHandler: 处理握手/协议升级/帧处理"]
+         P7["IdleStateHandler: 连接空闲检测"]
+         P8["NettyServerHandler: 业务逻辑处理"]
+      end
+   end
+
+   style A fill:#ffa07a,stroke:#333,stroke-width:2px
+   style K fill:#b38b6d,stroke:#333,stroke-width:2px
+   style C fill:#d4a59a,stroke:#333,stroke-width:2px
 ```
 
-消息处理流程：
+业务处理流程：
 
 ```mermaid
 graph TD
-    subgraph 消息处理流程
-        A[接收WebSocket消息] -->|Pipeline处理| B{消息类型判断}
-        
-        B -->|文本消息| C[TextWebSocketFrame处理]
-        C -->|1| C1[JSON解析]
-        C1 -->|2| C2[转换为NettyMessage]
-        C2 -->|3| C3[提交业务线程池]
-        C3 -->|4| C4[messageService.handleMessage]
-        
-        B -->|Ping| D[PingWebSocketFrame处理]
-        D -->|自动回复| D1[发送PongWebSocketFrame]
-        
-        B -->|Pong| E[PongWebSocketFrame处理]
-        E -->|更新| E1[更新心跳状态]
-        
-        B -->|Close| F[CloseWebSocketFrame处理]
-        F -->|关闭连接| F1[ctx.close]
-        
-        B -->|Binary| G[BinaryWebSocketFrame处理]
-        G -->|当前| G1[不支持处理]
-        
-        subgraph 消息完成处理
-            H[channelReadComplete]
-            H -->|1| H1[处理完成回调]
-            H -->|2| H2[刷新缓冲区]
-        end
-    end
+   subgraph "NettyServerHandler 核心功能"
+      A[NettyServerHandler] --> B{功能分类}
 
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style C4 fill:#bfb,stroke:#333,stroke-width:2px
-    style H fill:#bbf,stroke:#333,stroke-width:2px
+      B -->|连接生命周期| C[连接管理]
+      B -->|消息处理| D[消息路由]
+      B -->|心跳机制| E[心跳检测]
+      B -->|资源监控| F[资源管理]
+      B -->|异常处理| G[异常捕获]
+   end
+
+   subgraph "连接生命周期管理"
+      C --> C1[channelRegistered<br>通道注册]
+      C --> C2[channelActive<br>连接建立]
+      C --> C3[channelInactive<br>连接断开]
+
+      C2 -->|1| C21[创建连接统计对象]
+      C2 -->|2| C22[启动资源监控]
+      C2 -->|3| C23[添加到channelManager]
+      C2 -->|4| C24[触发onConnect回调]
+
+      C3 -->|1| C31[移除连接统计]
+      C3 -->|2| C32[从channelManager移除]
+      C3 -->|3| C33[触发onDisconnect回调]
+   end
+
+   subgraph "消息处理路由"
+      D --> D1[channelRead0<br>消息接收入口]
+
+      D1 --> D2{消息类型判断}
+
+      D2 -->|TextWebSocketFrame| D3[处理文本消息]
+      D3 -->|1| D31[更新数据接收时间]
+      D3 -->|2| D32[解析JSON为NettyMessage]
+      D3 -->|3| D33[提交到业务线程池]
+      D33 -->|4| D34[调用messageService.handleMessage]
+
+      D2 -->|PingWebSocketFrame| D4[处理Ping消息]
+      D4 -->|1| D41[更新心跳统计]
+      D4 -->|2| D42[回复Pong帧]
+
+      D2 -->|PongWebSocketFrame| D5[处理Pong消息]
+      D5 -->|1| D51[更新心跳统计]
+
+      D2 -->|CloseWebSocketFrame| D6[处理关闭消息]
+      D6 -->|1| D61[关闭连接]
+
+      D2 -->|其他类型| D7[记录未支持的消息]
+   end
+
+   subgraph "心跳检测机制"
+      E --> E1[userEventTriggered<br>空闲事件触发]
+
+      E1 --> E2{事件类型判断}
+
+      E2 -->|READER_IDLE<br>读空闲| E3[handleReaderIdle]
+      E3 -->|1| E31[增加心跳丢失计数]
+      E31 --> E32{检查条件}
+      E32 -->|僵尸连接| E33[关闭连接]
+      E32 -->|业务超时| E34[关闭连接]
+      E32 -->|心跳丢失超限| E35[关闭连接]
+
+      E2 -->|WRITER_IDLE<br>写空闲| E4[handleWriterIdle]
+      E4 -->|1| E41[发送Ping帧]
+
+      E2 -->|ALL_IDLE<br>全部空闲| E5[handleAllIdle]
+      E5 -->|1| E51[检查心跳超时]
+      E51 -->|超时| E52[关闭连接]
+   end
+
+   subgraph "资源监控"
+      F --> F1[startResourceMonitoring]
+      F1 -->|定时任务| F2[监控连接资源]
+      F2 -->|1| F21[估算内存使用]
+      F2 -->|2| F22[更新资源统计]
+      F2 -->|3| F23[检查资源超限]
+      F23 -->|超限| F24[记录警告日志]
+   end
+
+   subgraph "异常处理"
+      G --> G1[exceptionCaught]
+      G1 -->|1| G11[记录异常日志]
+      G1 -->|2| G12[关闭连接]
+   end
+
+   style A fill:#f9f,stroke:#333,stroke-width:2px
+   style D1 fill:#bbf,stroke:#333,stroke-width:2px
+   style E1 fill:#bfb,stroke:#333,stroke-width:2px
+   style C2 fill:#fbf,stroke:#333,stroke-width:2px
+   style C3 fill:#fbb,stroke:#333,stroke-width:2px
 ```
-连接生命周期和异常处理：
-
+连接生命周期
 ```mermaid
 graph TD
-    subgraph 连接生命周期
-        A[新连接到达] -->|注册| B[channelRegistered]
-        B -->|就绪| C[channelActive]
+    subgraph "连接生命周期管理"
+        A[新连接到达] --> B[channelActive]
         
-        C -->|1| C1[添加到channelManager]
-        C -->|2| C2[触发onConnect回调]
+        B -->|1| C1[创建连接统计对象]
+        B -->|2| C2[启动资源监控]
+        B -->|3| C3[添加到连接管理器]
+        B -->|4| C4[触发onConnect回调]
+        C4 -->|5| C5[发送认证请求]
         
-        subgraph 心跳检测
-            D[IdleStateHandler触发]
-            D -->|读空闲| D1[关闭连接]
-            D -->|写空闲| D2[发送Ping]
-            D -->|全空闲| D3[关闭连接]
-        end
+        D[接收AUTH消息] --> E[handleAuth]
+        E -->|1| E1[提取userId]
+        E -->|2| E2[绑定用户与通道]
+        E -->|3| E3[发送认证成功]
         
-        subgraph 连接关闭
-            E[连接断开] -->|触发| F[channelInactive]
-            F -->|1| F1[从channelManager移除]
-            F -->|2| F2[触发onDisconnect回调]
-            F -->|3| F3[释放资源]
-        end
+        F[连接断开] --> G[channelInactive]
+        G -->|1| G1[移除连接统计]
+        G -->|2| G2[从连接管理器移除]
+        G -->|3| G3[触发onDisconnect回调]
+        
+        H[心跳检测] --> I{事件类型}
+        I -->|读空闲| I1[检测心跳丢失]
+        I1 -->|增加丢失计数| I2{超过阈值?}
+        I2 -->|是| I3[关闭连接]
+        I -->|写空闲| I4[发送Ping帧]
     end
     
-    subgraph 异常处理流程
-        X[异常发生] -->|捕获| Y[exceptionCaught]
-        Y -->|1| Y1[记录错误日志]
-        Y -->|2| Y2[关闭连接]
-        Y -->|3| Y3[资源清理]
-        
-        Z[重试机制]
-        Z -->|条件判断| Z1{是否重试}
-        Z1 -->|是| Z2[延迟重试]
-        Z1 -->|否| Z3[启动失败处理]
-    end
-
     style A fill:#f9f,stroke:#333,stroke-width:2px
     style D fill:#bbf,stroke:#333,stroke-width:2px
-    style X fill:#fbb,stroke:#333,stroke-width:2px
-    style Z fill:#bfb,stroke:#333,stroke-width:2px
+    style F fill:#fbb,stroke:#333,stroke-width:2px
+    style H fill:#fbf,stroke:#333,stroke-width:2px
 ```
-
+用户id和channel绑定
+```mermaid
+graph TD
+    subgraph "用户与Channel绑定详细流程"
+        A[客户端连接] -->|WebSocket握手| B[NettyServerHandler.channelActive]
+        B -->|1| C[channelManager.addChannel]
+        B -->|2| D[messageService.onConnect]
+        
+        D -->|1| D1["创建认证请求消息<br>NettyMessage.system('请进行身份认证')"]
+        D1 -->|2| D2["发送认证请求<br>sendMessage(channel, authRequest)"]
+        D2 -->|3| D3["客户端接收认证请求"]
+        
+        D3 -->|4| E["客户端发送AUTH消息<br>NettyMessage.AUTH类型"]
+        
+        subgraph "AUTH消息结构"
+            AUTH1["messageId: UUID<br>type: AUTH<br>fromUserId: '用户ID'<br>content: '认证信息'<br>timestamp: '时间戳'"]
+        end
+        
+        E -->|WebSocket| F[NettyServerHandler.channelRead0]
+        F -->|1| F1["识别TextWebSocketFrame"]
+        F1 -->|2| F2["解析JSON为NettyMessage"]
+        F2 -->|3| F3["提交业务线程池"]
+        F3 -->|4| G[messageService.handleMessage]
+        
+        G -->|消息类型=AUTH| H[messageService.handleAuth]
+        
+        H -->|1| I["提取userId = message.getFromUserId()"]
+        I -->|2| J{userId是否有效?}
+        
+        J -->|无效| K["sendErrorMessage(channel, '认证失败：用户ID不能为空')"]
+        J -->|有效| L["channelManager.bindUser(userId, channel)"]
+        
+        L -->|1| M["获取或创建用户Channel集合<br>userChannelsMap.computeIfAbsent(userId, k -> new CopyOnWriteArraySet<>())"]
+        M -->|2| N["添加Channel到用户集合<br>userChannels.add(channel)"]
+        N -->|3| O["建立Channel到用户映射<br>channelUserMap.put(channel.id(), userId)"]
+        
+        O -->|4| P["创建认证成功消息<br>NettyMessage.system('认证成功')"]
+        P -->|5| Q["发送认证成功消息<br>sendMessage(channel, authSuccess)"]
+        Q -->|6| R["记录日志<br>log.info('用户 {} 认证成功，通道: {}', userId, channel.id())"]
+        
+        subgraph "多端登录支持"
+            S1["一个userId可绑定多个Channel"]
+            S2["userChannelsMap中保存用户所有活跃连接"]
+            S3["发送消息时会投递到用户所有终端"]
+        end
+        
+        subgraph "认证状态检查"
+            T1["消息处理前检查认证状态"]
+            T2["String userId = channelManager.getChannelUser(channel.id())"]
+            T3["if (userId == null) { 发送错误消息 }"]
+        end
+        
+        subgraph "NettyServerChannelManager数据结构"
+            DS1["userChannelsMap: ConcurrentMap<String, Set<Channel>>"]
+            DS2["channelUserMap: ConcurrentMap<ChannelId, String>"]
+            DS3["channels: ChannelGroup"]
+        end
+    end
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style AUTH1 fill:#fbb,stroke:#333,stroke-width:2px
+    style L fill:#bbf,stroke:#333,stroke-width:2px
+    style DS1 fill:#bfb,stroke:#333,stroke-width:2px
+    style DS2 fill:#bfb,stroke:#333,stroke-width:2px
+    style DS3 fill:#bfb,stroke:#333,stroke-width:2px
+```
 
 客户端启动
 ```mermaid

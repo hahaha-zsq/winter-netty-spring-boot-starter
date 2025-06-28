@@ -94,7 +94,6 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<WebSocketFra
         private final AtomicLong lastHeartbeatTime = new AtomicLong(0);          // 最后一次心跳时间
         private final AtomicLong lastDataTime = new AtomicLong(0);               // 最后一次数据接收时间
         private final AtomicLong lastBusinessCommandTime = new AtomicLong(0);    // 最后一次业务命令时间
-        private volatile int currentRetryDelay;             // 当前重试延迟
         private volatile long totalLatency = 0;                                   // 总心跳延迟
         private volatile int connectionQuality = 100;                             // 连接质量（0-100）
         private volatile String lastBusinessCommand = "";                         // 最后执行的业务命令
