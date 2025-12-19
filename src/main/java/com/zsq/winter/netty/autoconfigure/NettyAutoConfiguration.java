@@ -1,13 +1,7 @@
 package com.zsq.winter.netty.autoconfigure;
 
-import com.zsq.winter.netty.core.client.NettyClient;
-import com.zsq.winter.netty.core.client.NettyClientChannelInitializer;
-import com.zsq.winter.netty.core.client.NettyClientHandler;
-import com.zsq.winter.netty.core.client.NettyClientChannelManager;
-import com.zsq.winter.netty.core.server.NettyServer;
-import com.zsq.winter.netty.core.server.NettyServerChannelInitializer;
-import com.zsq.winter.netty.core.server.NettyServerChannelManager;
-import com.zsq.winter.netty.core.server.NettyServerHandler;
+import com.zsq.winter.netty.core.client.*;
+import com.zsq.winter.netty.core.server.*;
 import com.zsq.winter.netty.service.NettyClientMessageService;
 import com.zsq.winter.netty.service.NettyServerMessageService;
 import com.zsq.winter.netty.service.NettyServerPushTemplate;
@@ -15,6 +9,7 @@ import com.zsq.winter.netty.service.NettyClientPushTemplate;
 import com.zsq.winter.netty.service.impl.DefaultNettyClientMessageServiceImpl;
 import com.zsq.winter.netty.service.impl.DefaultNettyServerMessageServiceImpl;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -24,6 +19,7 @@ import org.springframework.context.annotation.DependsOn;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.beans.factory.annotation.Qualifier;
 
+import java.util.List;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
@@ -36,6 +32,14 @@ import java.util.concurrent.ThreadPoolExecutor;
 @Configuration
 @EnableConfigurationProperties(NettyProperties.class) // 启用配置属性绑定
 public class NettyAutoConfiguration {
+
+    // 自动收集 Spring 容器中所有实现了该接口的 Bean (如果没有则为空列表)
+    @Autowired(required = false)
+    private List<NettyServerPipelineCustomizer> serverCustomizers;
+
+    @Autowired(required = false)
+    private List<NettyClientPipelineCustomizer> clientCustomizers;
+
     @Bean("winterNettyServerTaskExecutor")
     @ConditionalOnProperty(prefix = "winter-netty", name = "enable-server", havingValue = "true", matchIfMissing = true)
     public ThreadPoolTaskExecutor winterNettyServerTaskExecutor(NettyProperties properties) {
@@ -110,7 +114,7 @@ public class NettyAutoConfiguration {
     public NettyServerChannelInitializer nettyServerChannelInitializer(
             NettyProperties properties,
             @Qualifier("nettyServerHandler") NettyServerHandler handler) {
-        return new NettyServerChannelInitializer(properties, handler);
+        return new NettyServerChannelInitializer(properties, handler, serverCustomizers);
     }
 
     /**
@@ -204,9 +208,8 @@ public class NettyAutoConfiguration {
     @ConditionalOnMissingBean
     @DependsOn("nettyClientHandler")
     public NettyClientChannelInitializer nettyClientChannelInitializer(
-            NettyProperties properties,
-            @Qualifier("nettyClientHandler") NettyClientHandler handler) {
-        return new NettyClientChannelInitializer(handler, properties);
+            NettyProperties properties, @Qualifier("nettyClientHandler") NettyClientHandler handler) {
+        return new NettyClientChannelInitializer(handler, properties, clientCustomizers);
     }
 
     /**
@@ -231,7 +234,7 @@ public class NettyAutoConfiguration {
     @ConditionalOnMissingBean
     @DependsOn({"nettyClient", "nettyClientMessageService"})
     public NettyClientPushTemplate nettyClientTemplate(
-            @Qualifier("nettyClientChannelManager") NettyClientChannelManager channelManager ) {
+            @Qualifier("nettyClientChannelManager") NettyClientChannelManager channelManager) {
         return new NettyClientPushTemplate(channelManager);
     }
 }

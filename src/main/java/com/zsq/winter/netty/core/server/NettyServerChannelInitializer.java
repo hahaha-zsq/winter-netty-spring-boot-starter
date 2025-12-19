@@ -1,5 +1,6 @@
 package com.zsq.winter.netty.core.server;
 
+import cn.hutool.core.util.ObjectUtil;
 import com.zsq.winter.netty.autoconfigure.NettyProperties;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
@@ -8,23 +9,18 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketServerCompressionHandler;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.util.SelfSignedCertificate;
+
 import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.ObjectUtils;
 
-import javax.annotation.PostConstruct;
-import java.io.File;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
  * WebSocket通道初始化器
  * 
  * 该类负责为每个新的WebSocket连接配置处理器链（Pipeline），主要功能包括：
- * 1. SSL/TLS加密通信配置
  * 2. HTTP协议编解码
  * 3. WebSocket协议支持
  * 4. 心跳检测
@@ -32,7 +28,6 @@ import java.util.concurrent.TimeUnit;
  * 6. 业务逻辑处理
  * 
  * 处理器链配置顺序（从前到后）：
- * 1. SSL处理器（可选）
  * 2. HTTP编解码器
  * 3. HTTP消息聚合器
  * 4. 大文件传输处理器
@@ -46,7 +41,7 @@ public class NettyServerChannelInitializer extends ChannelInitializer<SocketChan
 
     /**
      * WebSocket配置属性
-     * 包含SSL配置、路径配置、心跳配置等
+     * 路径配置、心跳配置等
      */
     private final NettyProperties properties;
 
@@ -56,75 +51,31 @@ public class NettyServerChannelInitializer extends ChannelInitializer<SocketChan
      */
     private final NettyServerHandler nettyServerHandler;
 
-    /**
-     * SSL上下文
-     * 用于配置HTTPS/WSS加密通信
-     */
-    private SslContext sslContext;
+    // 注入可选的自定义器
+    private final List<NettyServerPipelineCustomizer> customizers;
+
 
     /**
      * 构造函数
      *
      * @param properties WebSocket配置属性
      * @param nettyServerHandler WebSocket消息处理器
+     * @param customizers 可选的用户自定义的处理器
      */
-    public NettyServerChannelInitializer(NettyProperties properties, NettyServerHandler nettyServerHandler) {
+    public NettyServerChannelInitializer(NettyProperties properties,
+                                         NettyServerHandler nettyServerHandler,
+                                         List<NettyServerPipelineCustomizer> customizers) {
         this.properties = properties;
         this.nettyServerHandler = nettyServerHandler;
+        this.customizers = customizers;
     }
 
-    /**
-     * 初始化SSL上下文
-     * Spring容器启动时自动调用
-     * 
-     * 支持两种SSL证书配置方式：
-     * 1. 自定义证书：通过配置文件指定证书和密钥文件路径
-     * 2. 自签名证书：用于开发测试环境，自动生成临时证书
-     *
-     * @throws Exception SSL上下文初始化失败时抛出
-     */
-    @PostConstruct
-    public void init() throws Exception {
-        if (properties.getServer().isSslEnabled()) {
-            initSslContext();
-        }
-    }
-
-    /**
-     * 初始化SSL上下文的具体实现
-     * 
-     * 证书选择逻辑：
-     * 1. 如果配置了证书和密钥路径，使用自定义证书
-     * 2. 如果未配置证书，自动生成自签名证书（仅用于开发测试）
-     *
-     * @throws Exception 证书加载或SSL上下文创建失败时抛出
-     */
-    private void initSslContext() throws Exception {
-        // 检查是否配置了自定义证书
-        if (!ObjectUtils.isEmpty(properties.getServer().getSslCertPath()) && 
-            !ObjectUtils.isEmpty(properties.getServer().getSslKeyPath())) {
-            // 加载自定义证书
-            File certFile = new File(properties.getServer().getSslCertPath());
-            File keyFile = new File(properties.getServer().getSslKeyPath());
-            // 构建SSL上下文
-            sslContext = SslContextBuilder.forServer(certFile, keyFile).build();
-            // 记录日志信息
-            log.info("服务端：使用自定义SSL证书: {}", properties.getServer().getSslCertPath());
-        } else {
-            // 生成自签名证书
-            SelfSignedCertificate ssc = new SelfSignedCertificate();
-            sslContext = SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey()).build();
-            // 记录警告信息，自签名证书仅用于开发测试
-            log.warn("服务端：使用自签名SSL证书，仅用于开发测试");
-        }
-    }
 
     /**
      * 初始化WebSocket通道
      * 为每个新的客户端连接配置处理器链
      * 
      * 处理器配置说明：
-     * 1. SslHandler: SSL/TLS加密通信
      * 2. HttpServerCodec: HTTP请求解码和响应编码
      * 3. HttpObjectAggregator: 将HTTP消息的多个部分合并
      * 4. ChunkedWriteHandler: 支持大文件传输
@@ -139,11 +90,6 @@ public class NettyServerChannelInitializer extends ChannelInitializer<SocketChan
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
         ChannelPipeline pipeline = ch.pipeline();
-
-        // 配置SSL加密通信（如果启用）
-        if (!ObjectUtils.isEmpty(sslContext)) {
-            pipeline.addLast(sslContext.newHandler(ch.alloc()));
-        }
 
        /*
         粘包就是多个数据混淆在一起了，而且多个数据包之间没有明确的分隔，导致无法对这些数据包进行正确的读取。
@@ -162,6 +108,11 @@ public class NettyServerChannelInitializer extends ChannelInitializer<SocketChan
 
         // WebSocket消息压缩处理器
         pipeline.addLast(new WebSocketServerCompressionHandler());
+
+        // 3. 插入用户自定义处理器 (在业务逻辑处理器之前)
+        if (ObjectUtil.isNotEmpty(customizers)) {
+            customizers.forEach(c -> c.customize(pipeline));
+        }
 
         // WebSocket协议升级和帧处理器
         pipeline.addLast(new WebSocketServerProtocolHandler(

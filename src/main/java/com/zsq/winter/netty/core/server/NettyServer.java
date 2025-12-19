@@ -230,8 +230,7 @@ public class NettyServer {
      */
     private void logServerStartup(int bossThreads, int workerThreads) {
         log.info("服务端：服务器启动成功");
-        log.info("服务端：服务地址: {}://localhost:{}{}",
-                properties.getServer().isSslEnabled() ? "wss" : "ws",
+        log.info("服务端：localhost:{}{}",
                 properties.getServer().getPort(),
                 properties.getServer().getPath());
         log.info("服务端：Boss线程数: {}, Worker线程数: {}", bossThreads, workerThreads);

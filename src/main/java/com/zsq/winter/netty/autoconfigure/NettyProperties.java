@@ -96,21 +96,6 @@ public class NettyProperties {
         private int workerThreads = 0;
 
         /**
-         * 是否启用SSL
-         */
-        private boolean sslEnabled = false;
-
-        /**
-         * SSL证书路径
-         */
-        private String sslCertPath;
-
-        /**
-         * SSL私钥路径
-         */
-        private String sslKeyPath;
-
-        /**
          * 服务端线程池配置
          */
         private ThreadProperties threadPool = new ThreadProperties();
@@ -122,25 +107,7 @@ public class NettyProperties {
          * 客户端连接地址
          */
         private String host = "localhost";
-        /**
-         * 是否启用 SSL（如需启用 TCP over TLS）
-         */
-        private boolean sslEnabled = false;
 
-        /**
-         * SSL证书路径（X.509格式）
-         */
-        private String sslCertPath;
-
-        /**
-         * SSL私钥路径（PKCS#8格式）
-         */
-        private String sslKeyPath;
-
-        /**
-         * SSL信任证书路径（用于验证服务器证书）
-         */
-        private String sslTrustCertPath;
 
         /**
          * 客户端连接端口
