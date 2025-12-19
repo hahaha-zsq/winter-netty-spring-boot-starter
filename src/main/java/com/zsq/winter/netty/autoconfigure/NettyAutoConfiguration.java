@@ -14,6 +14,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.beans.factory.annotation.Qualifier;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
@@ -61,15 +62,41 @@ public class NettyAutoConfiguration {
         return executor;
     }
 
+
+    @Bean("winterNettyClientTaskExecutor")
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "winter-netty", name = "enable-client", havingValue = "true")
+    public ThreadPoolTaskExecutor winterNettyClientTaskExecutor(NettyProperties properties) {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        NettyProperties.ThreadProperties threadProps = properties.getClient().getThreadPool();
+        executor.setCorePoolSize(threadProps.getCorePoolSize());
+        executor.setMaxPoolSize(threadProps.getMaxPoolSize());
+        executor.setQueueCapacity(threadProps.getQueueCapacity());
+        executor.setKeepAliveSeconds(threadProps.getKeepAliveSeconds());
+        executor.setThreadNamePrefix(threadProps.getNamePrefix() + "client");
+        executor.setWaitForTasksToCompleteOnShutdown(threadProps.getWaitForTasksToCompleteOnShutdown());
+        executor.setAwaitTerminationSeconds(threadProps.getAwaitTerminationSeconds());
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.initialize();
+        return executor;
+    }
+
+
     /**
      * 创建服务端管道初始化器Bean
      */
     @Bean("nettyServerChannelInitializer")
     @ConditionalOnProperty(prefix = "winter-netty", name = "enable-server", havingValue = "true")
     @ConditionalOnMissingBean
-    @DependsOn("nettyServerHandler")
     public NettyServerChannelInitializer nettyServerChannelInitializer() {
         return new NettyServerChannelInitializer(serverCustomizers);
+    }
+
+    @Bean("nettyClientChannelInitializer")
+    @ConditionalOnProperty(prefix = "winter-netty", name = "enable-client", havingValue = "true")
+    @ConditionalOnMissingBean
+    public NettyClientChannelInitializer nettyClientChannelInitializer() {
+        return new NettyClientChannelInitializer(clientCustomizers);
     }
 
     /**
@@ -86,36 +113,15 @@ public class NettyAutoConfiguration {
         return new NettyServer(properties, initializer, executor);
     }
 
-
-    @Bean("winterNettyClientTaskExecutor")
-    @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "winter-netty", name = "enable-client", havingValue = "true")
-    public ThreadPoolTaskExecutor winterNettyClientTaskExecutor(NettyProperties properties) {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        NettyProperties.ThreadProperties threadProps = properties.getClient().getThreadPool();
-        executor.setCorePoolSize(threadProps.getCorePoolSize());
-        executor.setMaxPoolSize(threadProps.getMaxPoolSize());
-        executor.setQueueCapacity(threadProps.getQueueCapacity());
-        executor.setKeepAliveSeconds(threadProps.getKeepAliveSeconds());
-        executor.setThreadNamePrefix(threadProps.getNamePrefix() + "client");
-        executor.setWaitForTasksToCompleteOnShutdown(threadProps.getWaitForTasksToCompleteOnShutdown());
-        executor.setAwaitTerminationSeconds(threadProps.getAwaitTerminationSeconds());
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
-
-        executor.initialize();
-
-        return executor;
-    }
-
-    /**
-     * 创建客户端Channel管理器Bean
-     */
-    @Bean("nettyClientChannelManager")
+    @Bean("nettyClient")
     @ConditionalOnProperty(prefix = "winter-netty", name = "enable-client", havingValue = "true")
     @ConditionalOnMissingBean
-    public NettyClientChannelManager nettyClientChannelManager() {
-        return new NettyClientChannelManager();
+    @DependsOn({"nettyClientChannelInitializer", "winterNettyClientTaskExecutor"})
+    public NettyClient nettyClient(
+            NettyProperties properties,
+            @Qualifier("nettyClientChannelInitializer") NettyClientChannelInitializer initializer,
+            @Qualifier("winterNettyClientTaskExecutor") ThreadPoolTaskExecutor executor) {
+        return new NettyClient(properties, initializer, executor);
     }
-
 
 }

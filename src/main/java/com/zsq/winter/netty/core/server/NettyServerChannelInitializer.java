@@ -62,7 +62,6 @@ public class NettyServerChannelInitializer extends ChannelInitializer<SocketChan
         if (ObjectUtil.isNotEmpty(customizers)) {
             customizers.forEach(c -> c.customize(pipeline));
         }
-        log.debug("服务端：WebSocket通道初始化完成: {}", ch.id());
     }
 }
 

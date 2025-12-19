@@ -193,15 +193,6 @@ public class NettyClient {
     }
 
     /**
-     * 获取客户端运行状态
-     *
-     * @return true表示客户端正在运行且连接有效，false表示客户端未运行或连接已断开
-     */
-    public boolean isRunning() {
-        return isRunning.get() && isChannelActive();
-    }
-
-    /**
      * 检查channel是否处于活动状态
      *
      * @return true表示channel存在且活动，false表示channel不存在或已断开
@@ -210,14 +201,5 @@ public class NettyClient {
         return channel != null && channel.isActive();
     }
 
-    /**
-     * 获取远程服务器地址
-     *
-     * @return 格式为"host:port"的服务器地址字符串
-     */
-    public String getRemoteAddress() {
-        return String.format("%s:%d",
-                properties.getClient().getHost(),
-                properties.getClient().getPort());
-    }
+
 }

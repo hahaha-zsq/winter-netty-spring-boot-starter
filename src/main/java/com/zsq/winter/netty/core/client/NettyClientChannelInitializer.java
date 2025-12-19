@@ -22,25 +22,9 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class NettyClientChannelInitializer extends ChannelInitializer<SocketChannel> {
 
-    /**
-     * 客户端消息处理器
-     * 处理业务逻辑，如接收服务器消息、处理心跳等
-     */
-    private final NettyClientHandler nettyClientHandler;
-
-    /**
-     * Netty配置属性
-     * 、心跳间隔等参数
-     */
-    private final NettyProperties properties;
-
     private final List<NettyClientPipelineCustomizer> customizers;
 
-    public NettyClientChannelInitializer(NettyClientHandler nettyClientHandler,
-                                         NettyProperties properties,
-                                         List<NettyClientPipelineCustomizer> customizers) {
-        this.nettyClientHandler = nettyClientHandler;
-        this.properties = properties;
+    public NettyClientChannelInitializer(List<NettyClientPipelineCustomizer> customizers) {
         this.customizers = customizers;
     }
 
@@ -56,27 +40,9 @@ public class NettyClientChannelInitializer extends ChannelInitializer<SocketChan
     protected void initChannel(SocketChannel ch) {
         ChannelPipeline pipeline = ch.pipeline();
 
-
-        // 心跳检测处理器，用于检测连接是否存活，防止连接假死
-        // 当指定时间内没有读写操作时，会触发IdleStateEvent事件
-        pipeline.addLast(new IdleStateHandler(
-                properties.getClient().getHeartbeatInterval(), // 读空闲时间
-                properties.getClient().getHeartbeatInterval(), // 写空闲时间
-                properties.getClient().getHeartbeatInterval(), // 读写空闲时间
-                TimeUnit.SECONDS
-        ));
-
-        // 字符串编解码器
-        // 将ByteBuf转换为String，或将String转换为ByteBuf
-        pipeline.addLast(new StringDecoder(CharsetUtil.UTF_8));  // 入站消息解码器，网络数据（ByteBuf）→ StringDecoder → String类型消息
-        pipeline.addLast(new StringEncoder(CharsetUtil.UTF_8));  // 出站消息编码器，String类型消息 → StringEncoder → 网络数据（ByteBuf）
-
         // 插入用户自定义处理器
         if (ObjectUtil.isNotEmpty(customizers)) {
             customizers.forEach(c -> c.customize(pipeline));
         }
-        // 自定义业务处理器
-        // 处理实际的业务逻辑，如接收消息、发送心跳等
-        pipeline.addLast(nettyClientHandler);
     }
 }
