@@ -20,7 +20,6 @@ public class DefaultNettyServerMessageServiceImpl implements NettyServerMessageS
     public void handleMessage(Channel channel, NettyMessage message) {
         log.info("处理WebSocket消息 - 通道: {}, 消息类型: {}, 内容: {}",
                 channel.id(), message.getType(), message.getContent());
-
         try {
             switch (message.getType()) {
                 case AUTH:
@@ -84,28 +83,27 @@ public class DefaultNettyServerMessageServiceImpl implements NettyServerMessageS
 
         // 绑定用户ID和Channel的关系
         channelManager.bindUser(userId, channel);
-        
+
         // 发送认证成功消息
         NettyMessage authSuccess = NettyMessage.system("认证成功");
         sendMessage(channel, authSuccess);
-        
+
         log.info("用户 {} 认证成功，通道: {}", userId, channel.id());
     }
 
     /**
-     * 处理文本消息
+     * 处理普通文本消息（消息类型为TEXT）
+     * 消息只在发送者和服务器之间传递
+     * 服务器收到消息后，只回复给发送者一条确认消息
+     * 主要用于客户端与服务器之间的一对一通信
      */
     private void handleTextMessage(Channel channel, NettyMessage message) {
-        // 检查用户是否已认证
+        // 直接获取用户ID，不再进行认证检查
         String userId = channelManager.getChannelUser(channel.id());
-        if (userId == null) {
-            sendErrorMessage(channel, "请先进行身份认证");
-            return;
-        }
 
         // 处理文本消息
         log.info("处理文本消息 - 用户: {}, 内容: {}", userId, message.getContent());
-        
+
         // 发送确认消息
         NettyMessage response = NettyMessage.text("服务器已收到消息：" + message.getContent());
         response.setFromUserId("server");
