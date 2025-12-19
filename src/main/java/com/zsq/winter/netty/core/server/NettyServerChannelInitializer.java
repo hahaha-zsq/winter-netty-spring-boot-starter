@@ -5,17 +5,10 @@ import com.zsq.winter.netty.autoconfigure.NettyProperties;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.http.HttpObjectAggregator;
-import io.netty.handler.codec.http.HttpServerCodec;
-import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
-import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketServerCompressionHandler;
 
-import io.netty.handler.stream.ChunkedWriteHandler;
-import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * WebSocket通道初始化器
@@ -39,17 +32,6 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class NettyServerChannelInitializer extends ChannelInitializer<SocketChannel> {
 
-    /**
-     * WebSocket配置属性
-     * 路径配置、心跳配置等
-     */
-    private final NettyProperties properties;
-
-    /**
-     * WebSocket消息处理器
-     * 处理WebSocket协议下的业务消息
-     */
-    private final NettyServerHandler nettyServerHandler;
 
     // 注入可选的自定义器
     private final List<NettyServerPipelineCustomizer> customizers;
@@ -58,15 +40,10 @@ public class NettyServerChannelInitializer extends ChannelInitializer<SocketChan
     /**
      * 构造函数
      *
-     * @param properties WebSocket配置属性
-     * @param nettyServerHandler WebSocket消息处理器
      * @param customizers 可选的用户自定义的处理器
      */
-    public NettyServerChannelInitializer(NettyProperties properties,
-                                         NettyServerHandler nettyServerHandler,
+    public NettyServerChannelInitializer(
                                          List<NettyServerPipelineCustomizer> customizers) {
-        this.properties = properties;
-        this.nettyServerHandler = nettyServerHandler;
         this.customizers = customizers;
     }
 
@@ -74,15 +51,6 @@ public class NettyServerChannelInitializer extends ChannelInitializer<SocketChan
     /**
      * 初始化WebSocket通道
      * 为每个新的客户端连接配置处理器链
-     * 
-     * 处理器配置说明：
-     * 2. HttpServerCodec: HTTP请求解码和响应编码
-     * 3. HttpObjectAggregator: 将HTTP消息的多个部分合并
-     * 4. ChunkedWriteHandler: 支持大文件传输
-     * 5. WebSocketServerCompressionHandler: WebSocket消息压缩
-     * 6. WebSocketServerProtocolHandler: WebSocket协议处理
-     * 7. IdleStateHandler: 连接空闲检测
-     * 8. NettyServerHandler: 业务逻辑处理
      *
      * @param ch 新建立的客户端连接通道
      * @throws Exception 初始化过程中发生异常
@@ -90,52 +58,10 @@ public class NettyServerChannelInitializer extends ChannelInitializer<SocketChan
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
         ChannelPipeline pipeline = ch.pipeline();
-
-       /*
-        粘包就是多个数据混淆在一起了，而且多个数据包之间没有明确的分隔，导致无法对这些数据包进行正确的读取。
-        半包就是一个大的数据包被拆分成了多个数据包发送，读取的时候没有把多个包合成一个原本的大包，导致读取的数据不完整。
-        在纯 TCP 协议中容易出现，比如你自己写的 Netty + 二进制协议，就必须使用 LengthFieldBasedFrameDecoder 等解码器处理。
-        */
-
-        // HTTP编解码器 把字节流解码成 HTTP 请求对象（包括 headers + body）===>HTTP 是有消息边界的，能自然避免粘包
-        pipeline.addLast(new HttpServerCodec());
-
-        // HTTP对象聚合器，将多个HTTP消息聚合成一个完整的HTTP消息  ===>彻底消除了半包问题（最大帧可配置）
-        pipeline.addLast(new HttpObjectAggregator(properties.getServer().getMaxFrameSize()));
-
-        // 用于处理大文件传输（如发送大图）  ===>WebSocket 基于帧（frame）协议，有边界，不存在粘包问题
-        pipeline.addLast(new ChunkedWriteHandler());
-
-        // WebSocket消息压缩处理器
-        pipeline.addLast(new WebSocketServerCompressionHandler());
-
-        // 3. 插入用户自定义处理器 (在业务逻辑处理器之前)
+        // 插入用户自定义处理器 (在业务逻辑处理器之前)
         if (ObjectUtil.isNotEmpty(customizers)) {
             customizers.forEach(c -> c.customize(pipeline));
         }
-
-        // WebSocket协议升级和帧处理器
-        pipeline.addLast(new WebSocketServerProtocolHandler(
-                properties.getServer().getPath(),  // WebSocket路径
-                null,                              // 子协议
-                true,                              // 允许扩展
-                properties.getServer().getMaxFrameSize(), // 最大帧大小
-                false,                             // 允许mask
-                true,                              // 检查UTF8
-                properties.getServer().getHeartbeatTimeoutMs() // 握手超时时间
-        ));
-
-        // 空闲连接检测（心跳机制）
-        pipeline.addLast(new IdleStateHandler(
-                properties.getServer().getHeartbeatInterval(), // 读空闲时间
-                properties.getServer().getHeartbeatInterval(), // 写空闲时间
-                properties.getServer().getHeartbeatInterval(), // 读写空闲时间
-                TimeUnit.SECONDS
-        ));
-
-        // 业务逻辑处理器
-        pipeline.addLast(nettyServerHandler);
-
         log.debug("服务端：WebSocket通道初始化完成: {}", ch.id());
     }
 }

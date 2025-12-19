@@ -228,11 +228,10 @@ public class NettyServer {
      * @param bossThreads   Boss线程组线程数
      * @param workerThreads Worker线程组线程数
      */
+    // NettyServer.java 中的日志方法修改
     private void logServerStartup(int bossThreads, int workerThreads) {
         log.info("服务端：服务器启动成功");
-        log.info("服务端：localhost:{}{}",
-                properties.getServer().getPort(),
-                properties.getServer().getPath());
+        log.info("服务端：监听端口: {}", properties.getServer().getPort()); 
         log.info("服务端：Boss线程数: {}, Worker线程数: {}", bossThreads, workerThreads);
     }
 

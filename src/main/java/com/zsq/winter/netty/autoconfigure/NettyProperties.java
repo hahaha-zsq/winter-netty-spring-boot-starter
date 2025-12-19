@@ -30,74 +30,13 @@ public class NettyProperties {
 
     @Data
     public static class ServerProperties {
-        /**
-         * 服务端口
-         */
         private int port = 8888;
-
-        /**
-         * 是否启用 WebSocket
-         */
-        private boolean enabled = true;
-
-        /**
-         * WebSocket路径
-         */
-        private String path = "/websocket";
-
-        /**
-         * 最大连接数
-         */
-        private int maxConnections = 1000;
-
-        /**
-         * 最大帧长度
-         */
-        private int maxFrameSize = 65536;
-
-        /**
-         * 心跳间隔(秒)
-         */
+        private boolean enabled = true; // 仅表示组件是否启用
         private int heartbeatInterval = 30;
-
-        /**
-         * 最大允许的连续心跳丢失次数
-         */
-        private int maxMissedHeartbeats = 3;
-
-        /**
-         * 心跳超时时间（毫秒）
-         */
-        private long heartbeatTimeoutMs = 5000;
-
-        /**
-         * 业务操作超时时间（毫秒）
-         */
-        private long businessTimeoutMs = 10000;
-
-        /**
-         * 僵尸连接判定时间（毫秒）
-         */
-        private long zombieConnectionTimeoutMs = 30000;
-
-        /**
-         * 最大心跳丢失次数，超过此值将关闭连接
-         */
         private int maxHeartbeatMiss = 3;
-
-        /**
-         * Boss线程数
-         */
-        private int bossThreads = 1;
-
-        /**
-         * Worker线程数
-         */
+        private int bossThreads = 5;
         private int workerThreads = 0;
-
-        /**
-         * 服务端线程池配置
-         */
+        private int maxFrameSize = 65536;
         private ThreadProperties threadPool = new ThreadProperties();
     }
 

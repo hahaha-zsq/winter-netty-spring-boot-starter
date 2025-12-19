@@ -2,12 +2,6 @@ package com.zsq.winter.netty.autoconfigure;
 
 import com.zsq.winter.netty.core.client.*;
 import com.zsq.winter.netty.core.server.*;
-import com.zsq.winter.netty.service.NettyClientMessageService;
-import com.zsq.winter.netty.service.NettyServerMessageService;
-import com.zsq.winter.netty.service.NettyServerPushTemplate;
-import com.zsq.winter.netty.service.NettyClientPushTemplate;
-import com.zsq.winter.netty.service.impl.DefaultNettyClientMessageServiceImpl;
-import com.zsq.winter.netty.service.impl.DefaultNettyServerMessageServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -68,53 +62,14 @@ public class NettyAutoConfiguration {
     }
 
     /**
-     * 创建服务端Channel管理器Bean
-     */
-    @Bean("nettyServerChannelManager")
-    @ConditionalOnProperty(prefix = "winter-netty", name = "enable-server", havingValue = "true")
-    @ConditionalOnMissingBean
-    public NettyServerChannelManager nettyServerChannelManager() {
-        return new NettyServerChannelManager();
-    }
-
-    /**
-     * 创建默认的服务端消息处理服务Bean
-     */
-    @Bean("nettyServerMessageService")
-    @ConditionalOnProperty(prefix = "winter-netty", name = "enable-server", havingValue = "true")
-    @ConditionalOnMissingBean
-    @DependsOn("nettyServerChannelManager")
-    public NettyServerMessageService defaultNettyServerMessageService(
-            @Qualifier("nettyServerChannelManager") NettyServerChannelManager channelManager) {
-        return new DefaultNettyServerMessageServiceImpl(channelManager);
-    }
-
-    /**
-     * 创建服务端消息处理器Bean
-     */
-    @Bean("nettyServerHandler")
-    @ConditionalOnProperty(prefix = "winter-netty", name = "enable-server", havingValue = "true")
-    @ConditionalOnMissingBean
-    @DependsOn({"nettyServerMessageService", "winterNettyServerTaskExecutor"})
-    public NettyServerHandler nettyServerHandler(
-            @Qualifier("nettyServerChannelManager") NettyServerChannelManager channelManager,
-            @Qualifier("nettyServerMessageService") NettyServerMessageService messageService,
-            @Qualifier("winterNettyServerTaskExecutor") ThreadPoolTaskExecutor executor,
-            NettyProperties properties) {
-        return new NettyServerHandler(channelManager, messageService, executor, properties);
-    }
-
-    /**
      * 创建服务端管道初始化器Bean
      */
     @Bean("nettyServerChannelInitializer")
     @ConditionalOnProperty(prefix = "winter-netty", name = "enable-server", havingValue = "true")
     @ConditionalOnMissingBean
     @DependsOn("nettyServerHandler")
-    public NettyServerChannelInitializer nettyServerChannelInitializer(
-            NettyProperties properties,
-            @Qualifier("nettyServerHandler") NettyServerHandler handler) {
-        return new NettyServerChannelInitializer(properties, handler, serverCustomizers);
+    public NettyServerChannelInitializer nettyServerChannelInitializer() {
+        return new NettyServerChannelInitializer(serverCustomizers);
     }
 
     /**
@@ -131,17 +86,6 @@ public class NettyAutoConfiguration {
         return new NettyServer(properties, initializer, executor);
     }
 
-    /**
-     * 创建服务端消息推送服务Bean
-     */
-    @Bean("nettyServerPushTemplate")
-    @ConditionalOnProperty(prefix = "winter-netty", name = "enable-server", havingValue = "true")
-    @ConditionalOnMissingBean
-    @DependsOn("nettyServerChannelManager")
-    public NettyServerPushTemplate nettyServerPushTemplate(
-            @Qualifier("nettyServerChannelManager") NettyServerChannelManager channelManager) {
-        return new NettyServerPushTemplate(channelManager);
-    }
 
     @Bean("winterNettyClientTaskExecutor")
     @ConditionalOnMissingBean
@@ -173,68 +117,5 @@ public class NettyAutoConfiguration {
         return new NettyClientChannelManager();
     }
 
-    /**
-     * 创建客户端消息处理服务Bean
-     */
-    @Bean("nettyClientMessageService")
-    @ConditionalOnProperty(prefix = "winter-netty", name = "enable-client", havingValue = "true")
-    @ConditionalOnMissingBean
-    @DependsOn("nettyClientChannelManager")
-    public NettyClientMessageService defaultNettyClientMessageService(
-            @Qualifier("nettyClientChannelManager") NettyClientChannelManager channelManager) {
-        return new DefaultNettyClientMessageServiceImpl(channelManager);
-    }
 
-    /**
-     * 创建客户端消息处理器Bean
-     */
-    @Bean("nettyClientHandler")
-    @ConditionalOnProperty(prefix = "winter-netty", name = "enable-client", havingValue = "true")
-    @ConditionalOnMissingBean
-    @DependsOn({"nettyClientMessageService", "nettyClientChannelManager"})
-    public NettyClientHandler nettyClientHandler(
-            @Qualifier("nettyClientChannelManager") NettyClientChannelManager channelManager,
-            @Qualifier("nettyClientMessageService") NettyClientMessageService messageService,
-            @Qualifier("winterNettyClientTaskExecutor") ThreadPoolTaskExecutor executor,
-            NettyProperties properties) {
-        return new NettyClientHandler(channelManager, messageService, executor, properties);
-    }
-
-    /**
-     * 创建客户端管道初始化器Bean
-     */
-    @Bean("nettyClientChannelInitializer")
-    @ConditionalOnProperty(prefix = "winter-netty", name = "enable-client", havingValue = "true")
-    @ConditionalOnMissingBean
-    @DependsOn("nettyClientHandler")
-    public NettyClientChannelInitializer nettyClientChannelInitializer(
-            NettyProperties properties, @Qualifier("nettyClientHandler") NettyClientHandler handler) {
-        return new NettyClientChannelInitializer(handler, properties, clientCustomizers);
-    }
-
-    /**
-     * 创建客户端Bean
-     */
-    @Bean("nettyClient")
-    @ConditionalOnProperty(prefix = "winter-netty", name = "enable-client", havingValue = "true")
-    @ConditionalOnMissingBean
-    @DependsOn({"nettyClientChannelInitializer", "winterNettyClientTaskExecutor"})
-    public NettyClient nettyClient(
-            NettyProperties properties,
-            @Qualifier("nettyClientChannelInitializer") NettyClientChannelInitializer initializer,
-            @Qualifier("winterNettyClientTaskExecutor") ThreadPoolTaskExecutor executor) {
-        return new NettyClient(properties, initializer, executor);
-    }
-
-    /**
-     * 创建客户端消息发送模板Bean
-     */
-    @Bean("nettyClientTemplate")
-    @ConditionalOnProperty(prefix = "winter-netty", name = "enable-client", havingValue = "true")
-    @ConditionalOnMissingBean
-    @DependsOn({"nettyClient", "nettyClientMessageService"})
-    public NettyClientPushTemplate nettyClientTemplate(
-            @Qualifier("nettyClientChannelManager") NettyClientChannelManager channelManager) {
-        return new NettyClientPushTemplate(channelManager);
-    }
 }
