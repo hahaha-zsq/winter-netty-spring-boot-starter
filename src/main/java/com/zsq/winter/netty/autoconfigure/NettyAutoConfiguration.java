@@ -2,6 +2,11 @@ package com.zsq.winter.netty.autoconfigure;
 
 import com.zsq.winter.netty.core.client.*;
 import com.zsq.winter.netty.core.server.*;
+import com.zsq.winter.netty.core.websocket.TokenAuthenticator;
+import com.zsq.winter.netty.core.websocket.WebSocketMessageService;
+import com.zsq.winter.netty.core.websocket.WebSocketPipelineCustomizer;
+import com.zsq.winter.netty.core.websocket.WebSocketServerHandler;
+import com.zsq.winter.netty.core.websocket.WebSocketSessionManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -34,6 +39,14 @@ public class NettyAutoConfiguration {
 
     @Autowired(required = false)
     private List<NettyClientPipelineCustomizer> clientCustomizers;
+
+
+    /**
+     * Token 认证器（可选）
+     * 如果使用者提供了实现，则启用 Token 认证功能
+     */
+    @Autowired(required = false)
+    private TokenAuthenticator tokenAuthenticator;
 
     @Bean("winterNettyServerTaskExecutor")
     @ConditionalOnProperty(prefix = "winter-netty", name = "enable-server", havingValue = "true", matchIfMissing = true)
@@ -122,6 +135,52 @@ public class NettyAutoConfiguration {
             @Qualifier("nettyClientChannelInitializer") NettyClientChannelInitializer initializer,
             @Qualifier("winterNettyClientTaskExecutor") ThreadPoolTaskExecutor executor) {
         return new NettyClient(properties, initializer, executor);
+    }
+
+    // ==================== WebSocket 相关配置 ====================
+
+    /**
+     * WebSocket 会话管理器
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "winter-netty.server.websocket", name = "enabled", havingValue = "true")
+    @ConditionalOnMissingBean
+    public WebSocketSessionManager webSocketSessionManager() {
+        return new WebSocketSessionManager();
+    }
+
+    /**
+     * WebSocket 消息服务
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "winter-netty.server.websocket", name = "enabled", havingValue = "true")
+    @ConditionalOnMissingBean
+    public WebSocketMessageService webSocketMessageService(WebSocketSessionManager sessionManager) {
+        return new WebSocketMessageService(sessionManager);
+    }
+
+    /**
+     * WebSocket 服务端处理器
+     * 
+     * 注入 TokenAuthenticator（可选）以支持 Token 认证
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "winter-netty.server.websocket", name = "enabled", havingValue = "true")
+    @ConditionalOnMissingBean
+    public WebSocketServerHandler webSocketServerHandler(WebSocketSessionManager sessionManager) {
+        return new WebSocketServerHandler(sessionManager, tokenAuthenticator);
+    }
+
+    /**
+     * WebSocket Pipeline 定制器
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "winter-netty.server.websocket", name = "enabled", havingValue = "true")
+    @ConditionalOnMissingBean
+    public WebSocketPipelineCustomizer webSocketPipelineCustomizer(
+            NettyProperties properties,
+            WebSocketServerHandler webSocketServerHandler) {
+        return new WebSocketPipelineCustomizer(properties, webSocketServerHandler);
     }
 
 }

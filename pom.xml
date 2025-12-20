@@ -22,7 +22,8 @@
         <lombok.version>1.18.22</lombok.version>
         <hutool.version>5.8.25</hutool.version>
         <pinyin4j.version>2.5.1</pinyin4j.version>
-        <netty.version>4.1.107.Final</netty.version>
+        <netty.version>4.2.7.Final</netty.version>
+        <winter-design.version>0.0.5</winter-design.version>
     </properties>
 
 
@@ -32,6 +33,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
             <version>${spring.boot.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.github.hahaha-zsq</groupId>
+            <artifactId>winter-design</artifactId>
+            <version>${winter-design.version}</version>
         </dependency>
 
         <!-- Spring Boot Configuration Processor -->

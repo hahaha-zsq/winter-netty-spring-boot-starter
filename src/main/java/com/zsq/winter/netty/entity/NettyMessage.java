@@ -16,7 +16,6 @@ public class NettyMessage {
      * 消息类型枚举
      */
     public enum MessageType {
-        TEXT,           // 文本消息
         HEARTBEAT,      // 心跳消息
         SYSTEM,         // 系统消息
         BROADCAST,      // 广播消息
@@ -48,6 +47,11 @@ public class NettyMessage {
      * 消息内容
      */
     private String content;
+
+    /**
+     * 认证令牌（仅用于 AUTH 类型消息）
+     */
+    private String token;
 
     /**
      * 扩展数据
@@ -91,19 +95,7 @@ public class NettyMessage {
         this.fromUserId = fromUserId;
     }
 
-    /**
-     * 创建文本消息
-     *
-     * @param content 消息内容
-     * @return WebSocketMessage实例
-     */
-    public static NettyMessage text(String content) {
-        NettyMessage message = new NettyMessage();
-        message.setType(MessageType.TEXT);
-        message.setContent(content);
-        message.setTimestamp(System.currentTimeMillis());
-        return message;
-    }
+
 
     /**
      * 创建心跳消息
@@ -160,13 +152,13 @@ public class NettyMessage {
     /**
      * 创建认证消息
      *
-     * @param userId 用户ID
+     * @param token 认证令牌
      * @return WebSocketMessage实例
      */
-    public static NettyMessage auth(String userId) {
+    public static NettyMessage auth(String token) {
         NettyMessage message = new NettyMessage();
         message.setType(MessageType.AUTH);
-        message.setFromUserId(userId);
+        message.setToken(token);
         message.setContent("AUTH");
         message.setTimestamp(System.currentTimeMillis());
         return message;
