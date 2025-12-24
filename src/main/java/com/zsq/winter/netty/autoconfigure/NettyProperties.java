@@ -69,6 +69,11 @@ public class NettyProperties {
          * 最大空闲时间（秒），超过此时间未收到消息则断开连接
          */
         private int maxIdleTime = 90;
+        
+        /**
+         * 最大连接数限制
+         */
+        private int maxConnections = 1000;
     }
 
     @Data

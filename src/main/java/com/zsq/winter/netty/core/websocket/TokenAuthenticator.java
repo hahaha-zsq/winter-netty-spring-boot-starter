@@ -1,5 +1,7 @@
 package com.zsq.winter.netty.core.websocket;
 
+import lombok.Getter;
+
 /**
  * Token 认证器接口
  * 
@@ -44,22 +46,32 @@ public interface TokenAuthenticator {
     /**
      * Token 认证结果
      */
+    @Getter
     class AuthResult {
         
         /**
          * 认证是否成功
+         * -- GETTER --
+         *  判断认证是否成功
+
          */
         private final boolean success;
         
         /**
          * 用户唯一标识
          * 认证成功时必填
+         * -- GETTER --
+         *  获取用户ID
+
          */
         private final String userId;
         
         /**
          * 错误信息
          * 认证失败时说明失败原因
+         * -- GETTER --
+         *  获取错误信息
+
          */
         private final String errorMessage;
 
@@ -92,25 +104,5 @@ public interface TokenAuthenticator {
             return new AuthResult(false, null, errorMessage);
         }
 
-        /**
-         * 判断认证是否成功
-         */
-        public boolean isSuccess() {
-            return success;
-        }
-
-        /**
-         * 获取用户ID
-         */
-        public String getUserId() {
-            return userId;
-        }
-
-        /**
-         * 获取错误信息
-         */
-        public String getErrorMessage() {
-            return errorMessage;
-        }
     }
 }

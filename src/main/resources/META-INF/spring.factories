@@ -1,2 +1,3 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration = \
-  com.zsq.winter.netty.autoconfigure.NettyAutoConfiguration
+  com.zsq.winter.netty.autoconfigure.NettyServerAutoConfiguration, \
+  com.zsq.winter.netty.autoconfigure.NettyClientAutoConfiguration

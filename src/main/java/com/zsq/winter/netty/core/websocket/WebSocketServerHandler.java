@@ -2,127 +2,199 @@ package com.zsq.winter.netty.core.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zsq.winter.netty.entity.NettyMessage;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.*;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
+import io.netty.handler.timeout.IdleState;
+import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.AttributeKey;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Collection;
+
 /**
- * WebSocket 服务端消息处理器
- *
- * 核心职责：
- * 1. 接收并解析客户端发送的 WebSocket 消息
- * 2. 根据消息类型（认证 / 心跳 / 聊天 / 广播 / 私聊）分发处理
- * 3. 维护 Channel 与用户 ID 的绑定关系
- * 4. 通过 SessionManager 管理在线用户会话
- *
- * 说明：
- * - 该 Handler 是 Netty Pipeline 中 WebSocket 帧的核心业务处理器
- * - 仅处理 WebSocketFrame（主要是 TextWebSocketFrame）
+ * WebSocket 服务端业务处理器
+ * 
+ * 这是 WebSocket 连接的核心业务处理器，负责处理所有 WebSocket 相关的业务逻辑。
+ * 由于采用了握手阶段认证，到达这个处理器的连接都已经通过了认证。
+ * 
+ * 主要功能：
+ * 1. 连接生命周期管理：连接建立、断开的处理
+ * 2. 消息路由分发：根据消息类型分发到不同的处理方法
+ * 3. 业务消息处理：心跳、私聊、广播等具体业务逻辑
+ * 4. 异常处理：连接异常和消息处理异常的统一处理
+ * 5. 空闲检测：处理连接空闲超时事件
+ * 
+ * 支持的消息类型：
+ * - HEARTBEAT：心跳消息，用于保持连接活跃
+ * - PRIVATE：私聊消息，点对点通信
+ * - BROADCAST：广播消息，一对多通信
+ * - SYSTEM：系统消息，服务器主动推送
+ * 
+ * 安全特性：
+ * - 所有连接都已在握手阶段完成认证
+ * - 每个消息都会验证发送者身份
+ * - 自动处理连接异常和超时
+ * 
+ * @author Winter Netty Team
+ * @since 1.0.0
  */
 @Slf4j
 @ChannelHandler.Sharable // 标记为可共享，允许多个 Channel 共用同一个 Handler 实例
 public class WebSocketServerHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
 
     /**
-     * Channel 属性 Key：
-     * 用于在 Channel 上绑定当前连接对应的用户 ID
-     *
-     * 示例：
-     * ctx.channel().attr(USER_ID_KEY).set("user123");
+     * Channel 属性键：用户ID
+     * 用于从 Channel 中获取已认证用户的唯一标识
+     * 这个值在握手认证阶段由 WebSocketHandshakeAuthHandler 设置
      */
     private static final AttributeKey<String> USER_ID_KEY =
             AttributeKey.valueOf("userId");
 
     /**
      * WebSocket 会话管理器
-     * 负责：
-     * - userId -> Channel 的映射
-     * - 在线用户的统一管理
+     * 负责管理所有活跃的 WebSocket 连接：
+     * - 维护 userId 到 Channel 的映射关系
+     * - 提供在线用户查询功能
+     * - 统计在线用户数量
      */
     private final WebSocketSessionManager sessionManager;
 
     /**
-     * Token 认证器（可选）
-     * 如果使用者提供了实现，则使用 Token 认证
-     * 否则认证功能将被禁用
-     */
-    private final TokenAuthenticator tokenAuthenticator;
-
-    /**
      * JSON 序列化/反序列化工具
-     * 用于：
-     * - 接收客户端 JSON 消息并反序列化为 NettyMessage
-     * - 将 NettyMessage 序列化后发送给客户端
+     * 用于处理客户端和服务器之间的 JSON 消息：
+     * - 将接收到的 JSON 字符串反序列化为 NettyMessage 对象
+     * - 将 NettyMessage 对象序列化为 JSON 字符串发送给客户端
      */
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public WebSocketServerHandler(WebSocketSessionManager sessionManager,
-                                   TokenAuthenticator tokenAuthenticator) {
+    /**
+     * 构造函数
+     * 
+     * @param sessionManager WebSocket 会话管理器，不能为 null
+     */
+    public WebSocketServerHandler(WebSocketSessionManager sessionManager) {
         this.sessionManager = sessionManager;
-        this.tokenAuthenticator = tokenAuthenticator;
     }
 
     /**
      * 当 WebSocket 连接建立成功时触发
-     *
-     * 注意：
-     * - 此时连接已建立，但用户尚未认证
-     * - USER_ID_KEY 尚未设置
+     * 
+     * 由于采用了握手阶段认证，当这个方法被调用时：
+     * 1. WebSocket 握手已经完成
+     * 2. 用户已经通过认证
+     * 3. 用户ID已经存储在 Channel 属性中
+     * 
+     * 这个方法的主要任务是：
+     * - 从 Channel 属性中获取已认证的用户ID
+     * - 将用户会话注册到会话管理器
+     * - 记录连接建立日志
+     * 
+     * @param ctx Netty 通道处理上下文
+     * @throws Exception 处理过程中可能抛出的异常
      */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        log.info("WebSocket 连接建立，ChannelId={}",
-                ctx.channel().id().asShortText());
+        // 获取握手阶段已认证的用户ID
+        // 这个值由 WebSocketHandshakeAuthHandler 在认证成功后设置
+        String userId = ctx.channel().attr(USER_ID_KEY).get();
+        
+        if (userId == null) {
+            // 这种情况不应该发生，因为握手阶段已经认证
+            // 如果发生了，说明 Pipeline 配置有问题
+            log.error("连接已建立但未找到认证信息，关闭连接: {}", 
+                    ctx.channel().remoteAddress());
+            ctx.close();
+            return;
+        }
+
+        // 将已认证的用户添加到会话管理器
+        // 会话管理器会维护 userId 到 Channel 的映射关系
+        // 如果用户已存在连接，会自动关闭旧连接
+        sessionManager.addSession(userId, ctx.channel());
+        
+        log.info("WebSocket 连接建立，用户: {}, ChannelId={}, RemoteAddress={}",
+                userId, ctx.channel().id().asShortText(), 
+                ctx.channel().remoteAddress());
+        
+        // 调用父类方法，继续事件传播
         super.channelActive(ctx);
     }
 
+
     /**
      * 当 WebSocket 连接断开时触发
-     *
-     * 处理逻辑：
-     * 1. 从 Channel 中获取绑定的 userId
-     * 2. 如果已认证，则从 SessionManager 中移除该会话
-     * 3. 释放相关资源
+     * 
+     * 连接断开可能的原因：
+     * 1. 客户端主动关闭连接
+     * 2. 网络异常导致连接中断
+     * 3. 服务器主动关闭连接（如认证失败、异常等）
+     * 4. 心跳超时导致连接关闭
+     * 
+     * 这个方法的主要任务是：
+     * - 从会话管理器中移除用户会话
+     * - 清理相关资源
+     * - 记录断开连接日志
+     * 
+     * @param ctx Netty 通道处理上下文
+     * @throws Exception 处理过程中可能抛出的异常
      */
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         // 获取当前 Channel 绑定的用户 ID
         String userId = ctx.channel().attr(USER_ID_KEY).get();
 
-        // 如果用户已认证，则移除其会话
+        // 移除用户会话（因为握手阶段已认证，这里一定有userId）
         if (userId != null) {
+            // 从会话管理器中移除用户会话
+            // 这会清理 userId 到 Channel 的映射关系
             sessionManager.removeSession(ctx.channel());
             log.info("用户 {} 已下线", userId);
+        } else {
+            // 这种情况理论上不应该发生，因为握手阶段已经认证
+            // 如果发生了，可能是 Pipeline 配置问题或异常情况
+            log.warn("连接断开但未找到用户信息，ChannelId={}", 
+                    ctx.channel().id().asShortText());
         }
 
         log.info("WebSocket 连接断开，ChannelId={}",
                 ctx.channel().id().asShortText());
+        
+        // 调用父类方法，继续事件传播
         super.channelInactive(ctx);
     }
 
+
     /**
-     * 读取 WebSocket 数据帧
-     *
-     * 说明：
-     * - WebSocketFrame 是所有 WebSocket 帧的父类
-     * - 本服务只处理 TextWebSocketFrame（文本消息）
+     * 处理接收到的 WebSocket 帧消息
+     * 
+     * 这是处理 WebSocket 数据帧的核心方法，所有客户端发送的消息都会经过这里
+     * 
+     * 支持的帧类型：
+     * - TextWebSocketFrame：文本消息帧，包含 JSON 格式的业务数据
+     * - BinaryWebSocketFrame：二进制消息帧（当前不支持）
+     * - PingWebSocketFrame：Ping 帧（由 WebSocketServerProtocolHandler 处理）
+     * - PongWebSocketFrame：Pong 帧（由 WebSocketServerProtocolHandler 处理）
+     * - CloseWebSocketFrame：关闭帧（由 WebSocketServerProtocolHandler 处理）
+     * 
+     * @param ctx Netty 通道处理上下文
+     * @param frame 接收到的 WebSocket 帧
+     * @throws Exception 处理过程中可能抛出的异常
      */
     @Override
     protected void channelRead0(ChannelHandlerContext ctx,
                                 WebSocketFrame frame) throws Exception {
 
-        // 仅支持文本消息
+        // 目前只支持文本消息帧
         if (frame instanceof TextWebSocketFrame) {
+            // 处理文本消息，通常是 JSON 格式的业务数据
             handleTextMessage(ctx, (TextWebSocketFrame) frame);
         } else {
-            // 如：BinaryWebSocketFrame、PingWebSocketFrame 等
+            // 不支持的消息类型，记录警告并发送错误消息
+            // 如：BinaryWebSocketFrame、自定义帧等
             log.warn("不支持的 WebSocket 消息类型：{}",
                     frame.getClass().getName());
+            sendErrorMessage(ctx, "不支持的消息类型");
         }
     }
 
@@ -146,9 +218,6 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<WebSocke
 
             // 根据消息类型进行分发
             switch (message.getType()) {
-                case AUTH:
-                    handleAuthMessage(ctx, message);
-                    break;
                 case HEARTBEAT:
                     handleHeartbeatMessage(ctx, message);
                     break;
@@ -160,72 +229,19 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<WebSocke
                     break;
                 default:
                     log.warn("未知的消息类型：{}", message.getType());
+                    sendErrorMessage(ctx, "不支持的消息类型: " + message.getType());
             }
+        } catch (com.fasterxml.jackson.core.JsonParseException e) {
+            log.error("JSON 解析失败，原始内容：{}", text, e);
+            sendErrorMessage(ctx, "消息格式错误：JSON 解析失败");
+        } catch (com.fasterxml.jackson.databind.JsonMappingException e) {
+            log.error("JSON 映射失败，原始内容：{}", text, e);
+            sendErrorMessage(ctx, "消息格式错误：字段映射失败");
         } catch (Exception e) {
             log.error("消息处理失败，原始内容：{}", text, e);
-            sendErrorMessage(ctx, "消息格式错误");
-        }
-    }
-
-    /**
-     * 处理用户认证消息（基于 Token）
-     *
-     * 认证逻辑：
-     * 1. 检查是否已配置 TokenAuthenticator
-     * 2. 校验 Token 是否存在
-     * 3. 调用 TokenAuthenticator 验证 Token
-     * 4. 验证成功后将 userId 绑定到 Channel
-     * 5. 将用户会话加入 SessionManager
-     * 6. 返回认证成功响应
-     */
-    private void handleAuthMessage(ChannelHandlerContext ctx,
-                                   NettyMessage message) {
-
-        // 检查是否配置了认证器
-        if (tokenAuthenticator == null) {
-            log.error("未配置 TokenAuthenticator，无法进行认证");
-            sendErrorMessage(ctx, "服务端未配置认证功能");
+            sendErrorMessage(ctx, "消息处理异常，请稍后重试");
             ctx.close();
-            return;
         }
-
-        String token = message.getToken();
-
-        // 校验 Token
-        if (token == null || token.trim().isEmpty()) {
-            sendErrorMessage(ctx, "Token 不能为空");
-            ctx.close();
-            return;
-        }
-
-        // 调用使用者提供的认证逻辑
-        TokenAuthenticator.AuthResult authResult = tokenAuthenticator.authenticate(token);
-
-        if (!authResult.isSuccess()) {
-            // 认证失败
-            String errorMsg = authResult.getErrorMessage();
-            log.warn("Token 认证失败: {}", errorMsg);
-            sendErrorMessage(ctx, errorMsg != null ? errorMsg : "认证失败");
-            ctx.close();
-            return;
-        }
-
-        // 认证成功，获取用户 ID
-        String userId = authResult.getUserId();
-
-        // 将 userId 存入当前 Channel 的属性容器 中
-        // ctx.channel()：当前连接的 Channel（一个客户端连接）
-        ctx.channel().attr(USER_ID_KEY).set(userId);
-
-        // 将用户会话加入会话管理器
-        sessionManager.addSession(userId, ctx.channel());
-
-        // 发送系统认证成功消息
-        NettyMessage response = NettyMessage.system("认证成功");
-        sendMessage(ctx, response);
-
-        log.info("用户 {} 认证成功（Token: {}***）", userId, 
-                token.length() > 10 ? token.substring(0, 10) : token);
     }
 
     /**
@@ -277,21 +293,31 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<WebSocke
             String json = objectMapper.writeValueAsString(message);
             TextWebSocketFrame frame = new TextWebSocketFrame(json);
 
-            // 遍历所有在线 Channel
-            for (io.netty.channel.Channel channel :
-                    sessionManager.getAllChannels()) {
+            // 获取所有在线 Channel
+            Collection<Channel> channels = sessionManager.getAllChannels();
+            int successCount = 0;
+            int totalCount = 0;
 
+            // 遍历所有在线 Channel
+            for (Channel channel : channels) {
+                totalCount++;
                 // 管道在线且管道编号不等于当前管道编号的话就发生数据
-                if (channel.isActive()
-                    && !channel.id().equals(ctx.channel().id())) {
-                    channel.writeAndFlush(frame.retainedDuplicate());
+                if (channel.isActive() && !channel.id().equals(ctx.channel().id())) {
+                    try {
+                        channel.writeAndFlush(frame.retainedDuplicate());
+                        successCount++;
+                    } catch (Exception e) {
+                        log.warn("向 Channel {} 发送广播消息失败", 
+                                channel.id().asShortText(), e);
+                    }
                 }
             }
 
             // 释放引用
             frame.release();
 
-            log.info("用户 {} 发送广播消息", userId);
+            log.info("用户 {} 发送广播消息，目标用户数: {}，成功数: {}", 
+                    userId, totalCount - 1, successCount);
         } catch (Exception e) {
             log.error("广播消息失败", e);
             sendErrorMessage(ctx, "广播消息失败");
@@ -326,7 +352,7 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<WebSocke
         message.setTimestamp(System.currentTimeMillis());
 
         // 获取目标用户 Channel
-        io.netty.channel.Channel targetChannel =
+        Channel targetChannel =
                 sessionManager.getChannel(toUserId);
 
         if (targetChannel == null || !targetChannel.isActive()) {
@@ -386,5 +412,23 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<WebSocke
         log.error("WebSocket 处理异常，ChannelId={}",
                 ctx.channel().id().asShortText(), cause);
         ctx.close();
+    }
+
+    /**
+     * 处理用户事件（如心跳超时）
+     */
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        if (evt instanceof IdleStateEvent) {
+            IdleStateEvent idleEvent = (IdleStateEvent) evt;
+            
+            if (idleEvent.state() == IdleState.READER_IDLE) {
+                String userId = ctx.channel().attr(USER_ID_KEY).get();
+                log.warn("用户 {} 心跳超时，关闭连接", userId != null ? userId : "未认证用户");
+                ctx.close();
+            }
+        } else {
+            super.userEventTriggered(ctx, evt);
+        }
     }
 }

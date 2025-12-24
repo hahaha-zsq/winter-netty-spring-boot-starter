@@ -19,8 +19,7 @@ public class NettyMessage {
         HEARTBEAT,      // 心跳消息
         SYSTEM,         // 系统消息
         BROADCAST,      // 广播消息
-        PRIVATE,        // 私聊消息
-        AUTH            // 认证消息
+        PRIVATE      // 私聊消息
     }
 
     /**
@@ -146,21 +145,6 @@ public class NettyMessage {
     public static NettyMessage privateMessage(String fromUserId, String toUserId, String content) {
         NettyMessage message = new NettyMessage(MessageType.PRIVATE, fromUserId, content);
         message.setToUserId(toUserId);
-        return message;
-    }
-
-    /**
-     * 创建认证消息
-     *
-     * @param token 认证令牌
-     * @return WebSocketMessage实例
-     */
-    public static NettyMessage auth(String token) {
-        NettyMessage message = new NettyMessage();
-        message.setType(MessageType.AUTH);
-        message.setToken(token);
-        message.setContent("AUTH");
-        message.setTimestamp(System.currentTimeMillis());
         return message;
     }
 
