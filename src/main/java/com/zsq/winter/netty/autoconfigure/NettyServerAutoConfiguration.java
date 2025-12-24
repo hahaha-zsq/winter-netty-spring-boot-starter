@@ -24,7 +24,7 @@ import java.util.concurrent.ThreadPoolExecutor;
  * - 服务器实例：启动和管理Netty服务器
  * <p>
  * 所有Bean的创建都基于配置条件，确保在禁用服务端功能时不会创建不必要的Bean
- * 
+ *
  * @author zsq
  * @since 1.0.0
  */
@@ -65,7 +65,7 @@ public class NettyServerAutoConfiguration {
     public ThreadPoolTaskExecutor winterNettyServerTaskExecutor(NettyProperties properties) {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         NettyProperties.ThreadProperties threadProps = properties.getServer().getThreadPool();
-        
+
         // 设置核心线程数：线程池创建时的初始线程数
         executor.setCorePoolSize(threadProps.getCorePoolSize());
         // 设置最大线程数：当任务队列满时，可以创建的最大线程数
@@ -85,8 +85,8 @@ public class NettyServerAutoConfiguration {
 
         // 初始化线程池
         executor.initialize();
-        
-        log.info("Netty服务端线程池已创建 - 核心线程数: {}, 最大线程数: {}, 队列容量: {}", 
+
+        log.info("Netty服务端线程池已创建 - 核心线程数: {}, 最大线程数: {}, 队列容量: {}",
                 threadProps.getCorePoolSize(), threadProps.getMaxPoolSize(), threadProps.getQueueCapacity());
 
         return executor;
@@ -166,6 +166,7 @@ public class NettyServerAutoConfiguration {
         return new DefaultMessagePermissionValidator();
     }
 
+
     /**
      * 创建WebSocket消息服务
      * <p>
@@ -180,8 +181,8 @@ public class NettyServerAutoConfiguration {
      * - 参数校验：确保消息格式和参数的有效性
      * - 异常处理：统一处理发送过程中的异常
      *
-     * @param sessionManager 会话管理器，用于管理WebSocket连接
-     * @param tokenAuthenticator Token认证器，用于验证用户身份
+     * @param sessionManager      会话管理器，用于管理WebSocket连接
+     * @param tokenAuthenticator  Token认证器，用于验证用户身份
      * @param permissionValidator 权限验证器，用于检查消息发送权限
      * @return WebSocket消息服务实例
      */
@@ -192,7 +193,7 @@ public class NettyServerAutoConfiguration {
             WebSocketSessionManager sessionManager,
             TokenAuthenticator tokenAuthenticator,
             MessagePermissionValidator permissionValidator) {
-        
+
         log.info("创建WebSocket消息服务");
         return new WebSocketMessageService(sessionManager, tokenAuthenticator, permissionValidator);
     }
@@ -222,6 +223,35 @@ public class NettyServerAutoConfiguration {
         return new WebSocketServerHandler(sessionManager);
     }
 
+    /**
+     * 创建WebSocket服务端认证处理器
+     * <p>
+     * 注入条件：
+     * - winter-netty.enable-server=true（默认为true）
+     * - winter-netty.server.websocket.enabled=true（默认为false）
+     * - 容器中不存在WebSocketHandshakeAuthHandler类型的Bean
+     * <p>
+     * 服务端认证处理器负责：
+     * - 握手阶段认证（自定义）
+     * - 启用 WebSocket 压缩和大文件传输
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "winter-netty.server.websocket", name = "enabled", havingValue = "true")
+    @ConditionalOnMissingBean
+    public WebSocketHandshakeAuthHandler webSocketHandshakeAuthHandler(
+            WebSocketSessionManager sessionManager,
+            TokenAuthenticator tokenAuthenticator,
+            NettyProperties nettyProperties
+    ) {
+        log.info("创建WebSocket服务端认证处理器");
+        return new WebSocketHandshakeAuthHandler(
+                tokenAuthenticator,           // Token 认证器
+                sessionManager,               // 会话管理器
+                nettyProperties.getServer().getWebsocket().getMaxConnections()  // 最大连接数限制
+        );
+    }
+
+
     // ==================== 管道定制器配置 ====================
 
     /**
@@ -239,10 +269,8 @@ public class NettyServerAutoConfiguration {
      * - WebSocket协议处理：处理WebSocket帧的编解码
      * - 心跳检测和连接管理：维护连接活跃状态
      *
-     * @param properties Netty配置属性
+     * @param properties             Netty配置属性
      * @param webSocketServerHandler WebSocket服务端处理器
-     * @param sessionManager WebSocket会话管理器
-     * @param tokenAuthenticator Token认证器
      * @return WebSocket管道定制器实例
      */
     @Bean
@@ -251,11 +279,9 @@ public class NettyServerAutoConfiguration {
     public NettyServerPipelineCustomizer webSocketPipelineCustomizer(
             NettyProperties properties,
             WebSocketServerHandler webSocketServerHandler,
-            WebSocketSessionManager sessionManager,
-            TokenAuthenticator tokenAuthenticator) {
+            WebSocketHandshakeAuthHandler webSocketHandshakeAuthHandler) {
         log.info("WebSocket已启用，使用 WebSocketPipelineCustomizer 作为管道定制器");
-        return new WebSocketPipelineCustomizer(properties, webSocketServerHandler, 
-                tokenAuthenticator, sessionManager);
+        return new WebSocketPipelineCustomizer(properties, webSocketServerHandler,webSocketHandshakeAuthHandler);
     }
 
     /**
@@ -324,8 +350,8 @@ public class NettyServerAutoConfiguration {
      * - Worker线程组：用于处理I/O操作
      * - 业务线程池：用于处理业务逻辑
      *
-     * @param properties Netty配置属性，包含服务器端口、线程配置等
-     * @param initializer 服务端管道初始化器，用于配置Netty Channel的处理器链
+     * @param properties                    Netty配置属性，包含服务器端口、线程配置等
+     * @param initializer                   服务端管道初始化器，用于配置Netty Channel的处理器链
      * @param winterNettyServerTaskExecutor 专用线程池执行器，用于处理服务端业务逻辑
      * @return Netty服务器实例，服务器会在Spring容器启动时自动启动
      */
@@ -334,7 +360,7 @@ public class NettyServerAutoConfiguration {
     public NettyServer nettyServer(
             NettyProperties properties,
             NettyServerChannelInitializer initializer,
-           ThreadPoolTaskExecutor winterNettyServerTaskExecutor) {
+            ThreadPoolTaskExecutor winterNettyServerTaskExecutor) {
         log.info("创建Netty服务器实例，监听端口: {}", properties.getServer().getPort());
         return new NettyServer(properties, initializer, winterNettyServerTaskExecutor);
     }

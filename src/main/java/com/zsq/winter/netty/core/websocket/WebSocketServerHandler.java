@@ -5,6 +5,7 @@ import com.zsq.winter.netty.entity.NettyMessage;
 import io.netty.channel.*;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.AttributeKey;
@@ -93,31 +94,14 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<WebSocke
      * @param ctx Netty 通道处理上下文
      * @throws Exception 处理过程中可能抛出的异常
      */
+    /**
+     * 【修改点 1】：channelActive 中不再进行认证检查
+     * TCP 连接建立时，只做简单的日志记录，不要关闭连接
+     */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        // 获取握手阶段已认证的用户ID
-        // 这个值由 WebSocketHandshakeAuthHandler 在认证成功后设置
-        String userId = ctx.channel().attr(USER_ID_KEY).get();
-        
-        if (userId == null) {
-            // 这种情况不应该发生，因为握手阶段已经认证
-            // 如果发生了，说明 Pipeline 配置有问题
-            log.error("连接已建立但未找到认证信息，关闭连接: {}", 
-                    ctx.channel().remoteAddress());
-            ctx.close();
-            return;
-        }
-
-        // 将已认证的用户添加到会话管理器
-        // 会话管理器会维护 userId 到 Channel 的映射关系
-        // 如果用户已存在连接，会自动关闭旧连接
-        sessionManager.addSession(userId, ctx.channel());
-        
-        log.info("WebSocket 连接建立，用户: {}, ChannelId={}, RemoteAddress={}",
-                userId, ctx.channel().id().asShortText(), 
-                ctx.channel().remoteAddress());
-        
-        // 调用父类方法，继续事件传播
+        // 这里只记录 TCP 连接建立，不做认证检查，因为此时握手还没开始
+        log.debug("TCP连接建立: {}", ctx.channel().remoteAddress());
         super.channelActive(ctx);
     }
 
@@ -419,9 +403,26 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<WebSocke
      */
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        if (evt instanceof IdleStateEvent) {
+        // 监听 WebSocket 握手完成事件
+        if (evt instanceof WebSocketServerProtocolHandler.HandshakeComplete) {
+
+            // 获取握手阶段已认证的用户ID
+            String userId = ctx.channel().attr(USER_ID_KEY).get();
+
+            // 双重保险检查（理论上握手成功 handler 肯定通过了，但为了安全起见）
+            if (userId == null) {
+                log.error("握手完成但未找到认证信息，关闭连接: {}", ctx.channel().remoteAddress());
+                ctx.close();
+                return;
+            }
+
+            // 注册会话到管理器
+            sessionManager.addSession(userId, ctx.channel());
+            log.info("WebSocket 握手成功，用户: {}, ChannelId={}", userId, ctx.channel().id().asShortText());
+
+        } else if (evt instanceof IdleStateEvent) {
+            // 保持原有的心跳超时处理逻辑
             IdleStateEvent idleEvent = (IdleStateEvent) evt;
-            
             if (idleEvent.state() == IdleState.READER_IDLE) {
                 String userId = ctx.channel().attr(USER_ID_KEY).get();
                 log.warn("用户 {} 心跳超时，关闭连接", userId != null ? userId : "未认证用户");
