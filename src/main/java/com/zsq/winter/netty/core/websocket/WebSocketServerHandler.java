@@ -56,7 +56,8 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<WebSocke
     }
 
     /**
-     * 事件触发处理
+     * Netty 主动触发的业务或状态事件ctx.fireUserEventTriggered(evt);(fireUserEventTriggered 既可以由你自己手动触发，也会被 Netty 内置的一些处理器自动触发，
+     * 如：IdleStateHandler、SslHandler、WebSocketServerProtocolHandler、WebSocketClientProtocolHandler)
      * 核心修复点：在这里处理握手完成事件
      */
     @Override
