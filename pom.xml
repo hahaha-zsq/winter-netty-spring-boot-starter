@@ -117,11 +117,11 @@
                 <version>0.4.0</version>
                 <extensions>true</extensions>
                 <configuration>
-                    <!--需要是我们之前定义的server的id-->
+                    <!--需要是我们之前定义的server的id，用来从server文件中获取仓库的用户名密码的配置-->
                     <publishingServerId>dadandiaoming-maven</publishingServerId>
                     <tokenAuth>true</tokenAuth>
                     <!--需不需要自动发布，false就需要自己手动发布-->
-                    <autoPublish>false</autoPublish>
+                    <autoPublish>true</autoPublish>
                 </configuration>
             </plugin>
 
@@ -164,7 +164,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-gpg-plugin</artifactId>
-                <version>1.6</version>
+                <version>3.1.0</version>
                 <executions>
                     <execution>
                         <id>sign-artifacts</id>
@@ -175,17 +175,52 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <executable>gpg</executable>
                     <gpgArguments>
-                        <arg>--batch</arg>
                         <arg>--pinentry-mode</arg>
                         <arg>loopback</arg>
-                        <arg>-u</arg>
-                        <arg>${gpg.keyname}</arg>
-                        <arg>--passphrase</arg>
-                        <arg>${gpg.passphrase}</arg>
                     </gpgArguments>
                 </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>net.nicoulaj.maven.plugins</groupId>
+                <artifactId>checksum-maven-plugin</artifactId>
+                <version>1.11</version>
+                <executions>
+                    <execution>
+                        <id>create-checksums</id>
+                        <goals>
+                            <goal>artifacts</goal>
+                        </goals>
+                        <configuration>
+                            <algorithms>
+                                <algorithm>MD5</algorithm>
+                                <algorithm>SHA-1</algorithm>
+                            </algorithms>
+                            <attachChecksums>true</attachChecksums>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>create-pom-checksums</id>
+                        <goals>
+                            <goal>files</goal>
+                        </goals>
+                        <configuration>
+                            <fileSets>
+                                <fileSet>
+                                    <directory>${project.build.directory}</directory>
+                                    <includes>
+                                        <include>*.pom</include>
+                                    </includes>
+                                </fileSet>
+                            </fileSets>
+                            <algorithms>
+                                <algorithm>MD5</algorithm>
+                                <algorithm>SHA-1</algorithm>
+                            </algorithms>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
