@@ -1,0 +1,235 @@
+{
+  "groups": [
+    {
+      "name": "winter-netty",
+      "type": "com.zsq.winter.netty.autoconfigure.NettyProperties",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties"
+    },
+    {
+      "name": "winter-netty.client",
+      "type": "com.zsq.winter.netty.autoconfigure.NettyProperties$ClientProperties",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties"
+    },
+    {
+      "name": "winter-netty.client.thread-pool",
+      "type": "com.zsq.winter.netty.autoconfigure.NettyProperties$ThreadProperties",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ClientProperties"
+    },
+    {
+      "name": "winter-netty.server",
+      "type": "com.zsq.winter.netty.autoconfigure.NettyProperties$ServerProperties",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties"
+    },
+    {
+      "name": "winter-netty.server.thread-pool",
+      "type": "com.zsq.winter.netty.autoconfigure.NettyProperties$ThreadProperties",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ServerProperties"
+    },
+    {
+      "name": "winter-netty.server.websocket",
+      "type": "com.zsq.winter.netty.autoconfigure.NettyProperties$WebSocketProperties",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ServerProperties"
+    }
+  ],
+  "properties": [
+    {
+      "name": "winter-netty.client.host",
+      "type": "java.lang.String",
+      "description": "客户端连接地址",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ClientProperties",
+      "defaultValue": "localhost"
+    },
+    {
+      "name": "winter-netty.client.port",
+      "type": "java.lang.Integer",
+      "description": "客户端连接端口",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ClientProperties",
+      "defaultValue": 8889
+    },
+    {
+      "name": "winter-netty.client.thread-pool.await-termination-seconds",
+      "type": "java.lang.Integer",
+      "description": "任务完成，然后等待多少秒再终止线程池(默认为60秒)，以便在容器的其余部分继续关闭之前等待剩余的任务完成他们的执行",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ThreadProperties",
+      "defaultValue": 60
+    },
+    {
+      "name": "winter-netty.client.thread-pool.core-pool-size",
+      "type": "java.lang.Integer",
+      "description": "核心线程数：线程池创建时候初始化的线程数(默认为可用的计算资源，而不是CPU物理核心数) 核心线程会一直存活，即使没有任务需要执行",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ThreadProperties",
+      "defaultValue": 1
+    },
+    {
+      "name": "winter-netty.client.thread-pool.keep-alive-seconds",
+      "type": "java.lang.Integer",
+      "description": "允许线程的空闲时间\/秒，默认为(10秒)：当超过了核心线程出之外的线程在空闲时间到达之后会被销毁",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ThreadProperties",
+      "defaultValue": 10
+    },
+    {
+      "name": "winter-netty.client.thread-pool.max-pool-size",
+      "type": "java.lang.Integer",
+      "description": "最大线程数(默认为10) 当线程数>=corePoolSize，且任务队列已满时。线程池会创建新线程来处理任务 当线程数=maxPoolSize，且任务队列已满时，线程池会拒绝处理任务而抛出异常",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ThreadProperties",
+      "defaultValue": 10
+    },
+    {
+      "name": "winter-netty.client.thread-pool.name-prefix",
+      "type": "java.lang.String",
+      "description": "线程池名的前缀(默认为winterAsyncServiceExecutor -)：设置好了之后可以方便我们定位处理任务所在的线程池",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ThreadProperties",
+      "defaultValue": "winterNettyAsyncExecutor -"
+    },
+    {
+      "name": "winter-netty.client.thread-pool.queue-capacity",
+      "type": "java.lang.Integer",
+      "description": "任务队列容量(默认为50),当核心线程数达到最大时，新任务会放在队列中排队等待执行",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ThreadProperties",
+      "defaultValue": 50
+    },
+    {
+      "name": "winter-netty.client.thread-pool.wait-for-tasks-to-complete-on-shutdown",
+      "type": "java.lang.Boolean",
+      "description": "是否等待所有的任务结束后再关闭线程池(默认为true)",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ThreadProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "winter-netty.enable-client",
+      "type": "java.lang.Boolean",
+      "description": "是否启用 客户端组件",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties",
+      "defaultValue": false
+    },
+    {
+      "name": "winter-netty.enable-server",
+      "type": "java.lang.Boolean",
+      "description": "是否启用 服务端组件",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "winter-netty.server.boss-threads",
+      "type": "java.lang.Integer",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ServerProperties",
+      "defaultValue": 5
+    },
+    {
+      "name": "winter-netty.server.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ServerProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "winter-netty.server.max-heartbeat-miss",
+      "type": "java.lang.Integer",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ServerProperties",
+      "defaultValue": 3
+    },
+    {
+      "name": "winter-netty.server.port",
+      "type": "java.lang.Integer",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ServerProperties",
+      "defaultValue": 8888
+    },
+    {
+      "name": "winter-netty.server.thread-pool.await-termination-seconds",
+      "type": "java.lang.Integer",
+      "description": "任务完成，然后等待多少秒再终止线程池(默认为60秒)，以便在容器的其余部分继续关闭之前等待剩余的任务完成他们的执行",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ThreadProperties",
+      "defaultValue": 60
+    },
+    {
+      "name": "winter-netty.server.thread-pool.core-pool-size",
+      "type": "java.lang.Integer",
+      "description": "核心线程数：线程池创建时候初始化的线程数(默认为可用的计算资源，而不是CPU物理核心数) 核心线程会一直存活，即使没有任务需要执行",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ThreadProperties",
+      "defaultValue": 1
+    },
+    {
+      "name": "winter-netty.server.thread-pool.keep-alive-seconds",
+      "type": "java.lang.Integer",
+      "description": "允许线程的空闲时间\/秒，默认为(10秒)：当超过了核心线程出之外的线程在空闲时间到达之后会被销毁",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ThreadProperties",
+      "defaultValue": 10
+    },
+    {
+      "name": "winter-netty.server.thread-pool.max-pool-size",
+      "type": "java.lang.Integer",
+      "description": "最大线程数(默认为10) 当线程数>=corePoolSize，且任务队列已满时。线程池会创建新线程来处理任务 当线程数=maxPoolSize，且任务队列已满时，线程池会拒绝处理任务而抛出异常",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ThreadProperties",
+      "defaultValue": 10
+    },
+    {
+      "name": "winter-netty.server.thread-pool.name-prefix",
+      "type": "java.lang.String",
+      "description": "线程池名的前缀(默认为winterAsyncServiceExecutor -)：设置好了之后可以方便我们定位处理任务所在的线程池",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ThreadProperties",
+      "defaultValue": "winterNettyAsyncExecutor -"
+    },
+    {
+      "name": "winter-netty.server.thread-pool.queue-capacity",
+      "type": "java.lang.Integer",
+      "description": "任务队列容量(默认为50),当核心线程数达到最大时，新任务会放在队列中排队等待执行",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ThreadProperties",
+      "defaultValue": 50
+    },
+    {
+      "name": "winter-netty.server.thread-pool.wait-for-tasks-to-complete-on-shutdown",
+      "type": "java.lang.Boolean",
+      "description": "是否等待所有的任务结束后再关闭线程池(默认为true)",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ThreadProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "winter-netty.server.websocket.enabled",
+      "type": "java.lang.Boolean",
+      "description": "是否启用内置 WebSocket 处理器",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$WebSocketProperties",
+      "defaultValue": false
+    },
+    {
+      "name": "winter-netty.server.websocket.heartbeat-enabled",
+      "type": "java.lang.Boolean",
+      "description": "是否启用心跳检测",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$WebSocketProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "winter-netty.server.websocket.heartbeat-interval",
+      "type": "java.lang.Integer",
+      "description": "心跳间隔（秒）",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$WebSocketProperties",
+      "defaultValue": 30
+    },
+    {
+      "name": "winter-netty.server.websocket.max-connections",
+      "type": "java.lang.Integer",
+      "description": "最大连接数限制",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$WebSocketProperties",
+      "defaultValue": 1000
+    },
+    {
+      "name": "winter-netty.server.websocket.max-idle-time",
+      "type": "java.lang.Integer",
+      "description": "最大空闲时间（秒），超过此时间未收到消息则断开连接",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$WebSocketProperties",
+      "defaultValue": 90
+    },
+    {
+      "name": "winter-netty.server.websocket.path",
+      "type": "java.lang.String",
+      "description": "WebSocket 路径",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$WebSocketProperties",
+      "defaultValue": "\/ws"
+    },
+    {
+      "name": "winter-netty.server.worker-threads",
+      "type": "java.lang.Integer",
+      "sourceType": "com.zsq.winter.netty.autoconfigure.NettyProperties$ServerProperties",
+      "defaultValue": 0
+    }
+  ],
+  "hints": []
+}

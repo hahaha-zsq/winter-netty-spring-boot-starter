@@ -1,18 +1,12 @@
 package com.zsq.winter.netty.core.client;
 
-import cn.hutool.core.util.ObjectUtil;
-import com.zsq.winter.netty.autoconfigure.NettyProperties;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.string.StringDecoder;
-import io.netty.handler.codec.string.StringEncoder;
-import io.netty.handler.timeout.IdleStateHandler;
-import io.netty.util.CharsetUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.ObjectUtils;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Netty客户端Channel初始化器
@@ -41,7 +35,7 @@ public class NettyClientChannelInitializer extends ChannelInitializer<SocketChan
         ChannelPipeline pipeline = ch.pipeline();
 
         // 插入用户自定义处理器
-        if (ObjectUtil.isNotEmpty(customizers)) {
+        if (!ObjectUtils.isEmpty(customizers)) {
             customizers.forEach(c -> c.customize(pipeline));
         }
     }

@@ -20,10 +20,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring.boot.version>2.6.11</spring.boot.version>
         <lombok.version>1.18.22</lombok.version>
-        <hutool.version>5.8.25</hutool.version>
-        <pinyin4j.version>2.5.1</pinyin4j.version>
         <netty.version>4.2.7.Final</netty.version>
-        <winter-design.version>0.0.5</winter-design.version>
     </properties>
 
 
@@ -35,11 +32,6 @@
             <version>${spring.boot.version}</version>
         </dependency>
 
-        <dependency>
-            <groupId>io.github.hahaha-zsq</groupId>
-            <artifactId>winter-design</artifactId>
-            <version>${winter-design.version}</version>
-        </dependency>
 
         <!-- Spring Boot Configuration Processor -->
         <dependency>
@@ -61,13 +53,6 @@
             <artifactId>netty-all</artifactId>
             <version>${netty.version}</version>
         </dependency>
-
-        <dependency>
-            <groupId>cn.hutool</groupId>
-            <artifactId>hutool-json</artifactId>
-            <version>${hutool.version}</version>
-        </dependency>
-
     </dependencies>
 
 
