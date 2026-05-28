@@ -87,9 +87,24 @@ import java.util.stream.Collectors;
 @Slf4j
 public class WebSocketMessageService {
 
+    /**
+     * WebSocket 会话管理器，负责维护用户ID与 Channel 的映射关系，提供在线状态查询和消息投递能力
+     */
     private final WebSocketSessionManager sessionManager;
+
+    /**
+     * Token 认证器，用于解析和验证用户身份凭证
+     */
     private final TokenAuthenticator tokenAuthenticator;
+
+    /**
+     * 消息权限校验器，验证发送方是否有权对目标执行指定操作
+     */
     private final MessagePermissionValidator permissionValidator;
+
+    /**
+     * Jackson JSON 序列化/反序列化工具，用于将 {@link NettyMessage} 转换为 JSON 字符串
+     */
     private final ObjectMapper objectMapper = new ObjectMapper();
     
     /**
@@ -100,9 +115,13 @@ public class WebSocketMessageService {
     private final AtomicInteger totalBlockedMessages = new AtomicInteger(0);
     
     /**
-     * 消息缓存，用于优化重复消息的序列化
+     * 消息缓存，用于优化重复消息（系统消息/广播消息）的序列化，避免重复序列化相同内容
      */
     private final Map<String, String> messageCache = new ConcurrentHashMap<>();
+
+    /**
+     * 消息缓存最大条目数，超过此阈值时将清空整个缓存以防止内存溢出
+     */
     private static final int MAX_CACHE_SIZE = 1000;
     
     /**
@@ -114,8 +133,18 @@ public class WebSocketMessageService {
      * 发送频率限制（每个用户每秒最多发送的消息数）
      */
     private final Map<String, MessagePermissionValidator.RateLimiter> rateLimiters = new ConcurrentHashMap<>();
+    /**
+     * 每个用户每秒最多允许发送的消息数上限，超出此频率的请求将被拒绝
+     */
     private static final int MAX_MESSAGES_PER_SECOND = 10;
 
+    /**
+     * 构造 WebSocket 消息服务实例
+     *
+     * @param sessionManager       WebSocket 会话管理器，用于管理用户连接和消息投递
+     * @param tokenAuthenticator    Token 认证器，用于解析和验证用户身份
+     * @param permissionValidator   消息权限校验器，用于验证用户操作权限
+     */
     public WebSocketMessageService(WebSocketSessionManager sessionManager, 
                                  TokenAuthenticator tokenAuthenticator,
                                  MessagePermissionValidator permissionValidator) {
@@ -132,7 +161,21 @@ public class WebSocketMessageService {
     // ==================== 安全验证方法 ====================
 
     /**
-     * 验证发送方身份和权限
+     * 统一的安全验证方法，对发送方进行身份认证、在线检查、频率限制和权限校验
+     *
+     * <p>验证流程依次为：
+     * <ol>
+     *   <li>Token 非空验证</li>
+     *   <li>Token 身份认证（解析出 senderId）</li>
+     *   <li>发送方在线状态检查</li>
+     *   <li>发送频率限制检查</li>
+     *   <li>操作权限验证</li>
+     * </ol>
+     *
+     * @param token          发送方的身份凭证
+     * @param operation      待执行的操作类型
+     * @param targetUserId   操作的目标用户ID，广播操作时可为 {@code null}
+     * @return 安全验证结果，包含验证是否成功及发送者ID或错误信息
      */
     private MessagePermissionValidator.SecurityValidationResult validateSecurity(String token, MessagePermissionValidator.Operation operation, String targetUserId) {
         // 1. Token 验证
@@ -174,7 +217,13 @@ public class WebSocketMessageService {
     }
 
     /**
-     * 检查发送频率限制
+     * 检查指定用户的发送频率是否超出限制
+     *
+     * <p>采用令牌桶算法，每个用户每秒最多发送 {@value MAX_MESSAGES_PER_SECOND} 条消息。
+     * 频率限制器按需创建，仅对在线用户有效。
+     *
+     * @param userId 用户ID
+     * @return {@code true} 表示允许发送，{@code false} 表示频率超限
      */
     private boolean checkRateLimit(String userId) {
         MessagePermissionValidator.RateLimiter rateLimiter = rateLimiters.computeIfAbsent(userId, 
@@ -280,6 +329,14 @@ public class WebSocketMessageService {
 
     /**
      * 发送系统消息给指定用户（带回调）
+     *
+     * <p>异步版本的 {@link #sendSystemMessage(String, String, String)}，
+     * 通过回调接口异步通知消息发送结果，适用于非阻塞场景。
+     *
+     * @param adminToken 管理员Token，用于身份认证和权限校验
+     * @param userId     接收用户ID
+     * @param content    消息内容
+     * @param callback   发送结果回调，接收 {@link MessagePermissionValidator.SendResult}，可为 {@code null}
      */
     public void sendSystemMessage(String adminToken, String userId, String content, Consumer<MessagePermissionValidator.SendResult> callback) {
         if (!validateContent(content)) {
@@ -326,6 +383,14 @@ public class WebSocketMessageService {
 
     /**
      * 发送私聊消息（带回调）
+     *
+     * <p>异步版本的 {@link #sendPrivateMessage(String, String, String)}，
+     * 通过回调接口异步通知消息发送结果。
+     *
+     * @param senderToken 发送者Token，用于身份认证和权限校验
+     * @param toUserId    接收者ID
+     * @param content     消息内容
+     * @param callback    发送结果回调，可为 {@code null}
      */
     public void sendPrivateMessage(String senderToken, String toUserId, String content, Consumer<MessagePermissionValidator.SendResult> callback) {
         if (!validateUserId(toUserId) || !validateContent(content)) {
@@ -405,10 +470,108 @@ public class WebSocketMessageService {
         return MessagePermissionValidator.BroadcastResult.success(successCount);
     }
 
+    // ==================== 内部推送方法（服务端主动推送，无需 Token）====================
+
+    /**
+     * 内部发送系统消息（无需 Token 认证，供定时任务/事件驱动等服务端场景使用）
+     *
+     * <p>跳过身份认证、在线检查、频率限制和权限校验，直接将系统消息投递给目标用户。
+     * 消息的发送者ID固定为 {@code "SYSTEM"}。
+     *
+     * @param userId  接收用户ID
+     * @param content 消息内容
+     * @return 发送结果
+     */
+    public MessagePermissionValidator.SendResult sendSystemMessageInternal(String userId, String content) {
+        if (!validateUserId(userId) || !validateContent(content)) {
+            return MessagePermissionValidator.SendResult.failure("参数验证失败");
+        }
+
+        NettyMessage message = NettyMessage.system(content);
+        return sendToUser("SYSTEM", userId, message, null);
+    }
+
+    /**
+     * 内部发送系统消息（带回调，无需 Token）
+     *
+     * @param userId   接收用户ID
+     * @param content  消息内容
+     * @param callback 发送结果回调，可为 {@code null}
+     */
+    public void sendSystemMessageInternal(String userId, String content, Consumer<MessagePermissionValidator.SendResult> callback) {
+        if (!validateUserId(userId) || !validateContent(content)) {
+            if (callback != null) callback.accept(MessagePermissionValidator.SendResult.failure("参数验证失败"));
+            return;
+        }
+
+        NettyMessage message = NettyMessage.system(content);
+        sendToUser("SYSTEM", userId, message, callback);
+    }
+
+    /**
+     * 内部广播系统消息（无需 Token）
+     *
+     * <p>向所有在线用户广播系统消息，跳过权限校验。适用于服务端主动推送通知、公告等场景。
+     *
+     * @param content 消息内容
+     * @return 广播结果，包含成功接收的用户数
+     */
+    public MessagePermissionValidator.BroadcastResult broadcastSystemMessageInternal(String content) {
+        return broadcastSystemMessageInternal(content, null);
+    }
+
+    /**
+     * 内部广播系统消息（可排除指定用户，无需 Token）
+     *
+     * @param content        消息内容
+     * @param excludeUserId  需要排除的用户ID，为 {@code null} 时不排除任何用户
+     * @return 广播结果，包含成功接收的用户数
+     */
+    public MessagePermissionValidator.BroadcastResult broadcastSystemMessageInternal(String content, String excludeUserId) {
+        if (!validateContent(content)) {
+            return MessagePermissionValidator.BroadcastResult.failure("消息内容不能为空");
+        }
+
+        NettyMessage message = NettyMessage.system(content);
+        int successCount = broadcastInternal(message, excludeUserId);
+        return MessagePermissionValidator.BroadcastResult.success(successCount);
+    }
+
+    /**
+     * 内部批量发送系统消息（无需 Token）
+     *
+     * <p>向多个用户批量发送系统消息，跳过身份认证和权限校验。
+     * 消息只会被序列化一次后复用，提升批量发送性能。
+     *
+     * @param userIds  接收用户ID集合
+     * @param content  消息内容
+     * @return 批量发送结果，包含成功、失败和离线用户数量统计
+     */
+    public MessagePermissionValidator.BatchSendResult sendSystemMessageToUsersInternal(Collection<String> userIds, String content) {
+        if (userIds == null || userIds.isEmpty()) {
+            return MessagePermissionValidator.BatchSendResult.failure("用户ID列表不能为空");
+        }
+
+        if (!validateContent(content)) {
+            return MessagePermissionValidator.BatchSendResult.failure("消息内容不能为空");
+        }
+
+        NettyMessage message = NettyMessage.system(content);
+        return sendToUsersInternal("SYSTEM", userIds, message);
+    }
+
     // ==================== 异步发送方法 ====================
 
     /**
      * 异步发送系统消息给指定用户
+     *
+     * <p>通过 {@link CompletableFuture} 异步返回发送结果，适用于需要非阻塞调用的场景。
+     * 内部执行完整的安全验证流程（Token认证 → 在线检查 → 频率限制 → 权限校验）。
+     *
+     * @param adminToken 管理员Token，用于身份认证和权限校验
+     * @param userId     接收用户ID
+     * @param content    消息内容
+     * @return 包含发送结果的 {@link CompletableFuture}，异步完成
      */
     public CompletableFuture<MessagePermissionValidator.SendResult> sendSystemMessageAsync(String adminToken, String userId, String content) {
         CompletableFuture<MessagePermissionValidator.SendResult> future = new CompletableFuture<>();
@@ -431,6 +594,11 @@ public class WebSocketMessageService {
 
     /**
      * 异步发送私聊消息
+     *
+     * @param senderToken 发送者Token，用于身份认证和权限校验
+     * @param toUserId    接收者ID
+     * @param content     消息内容
+     * @return 包含发送结果的 {@link CompletableFuture}，异步完成
      */
     public CompletableFuture<MessagePermissionValidator.SendResult> sendPrivateMessageAsync(String senderToken, String toUserId, String content) {
         CompletableFuture<MessagePermissionValidator.SendResult> future = new CompletableFuture<>();
@@ -458,6 +626,10 @@ public class WebSocketMessageService {
 
     /**
      * 异步广播系统消息
+     *
+     * @param adminToken 管理员Token，用于身份认证和权限校验
+     * @param content    消息内容
+     * @return 包含广播结果的 {@link CompletableFuture}，异步完成
      */
     public CompletableFuture<MessagePermissionValidator.BroadcastResult> broadcastSystemMessageAsync(String adminToken, String content) {
         return broadcastSystemMessageAsync(adminToken, content, null);
@@ -465,6 +637,11 @@ public class WebSocketMessageService {
 
     /**
      * 异步广播系统消息（可排除指定用户）
+     *
+     * @param adminToken    管理员Token，用于身份认证和权限校验
+     * @param content       消息内容
+     * @param excludeUserId 需要排除的用户ID，为 {@code null} 时不排除任何用户
+     * @return 包含广播结果的 {@link CompletableFuture}，异步完成
      */
     public CompletableFuture<MessagePermissionValidator.BroadcastResult> broadcastSystemMessageAsync(String adminToken, String content, String excludeUserId) {
         CompletableFuture<MessagePermissionValidator.BroadcastResult> future = new CompletableFuture<>();
@@ -477,6 +654,59 @@ public class WebSocketMessageService {
         MessagePermissionValidator.SecurityValidationResult securityResult = validateSecurity(adminToken, MessagePermissionValidator.Operation.BROADCAST_SYSTEM_MESSAGE, null);
         if (!securityResult.isSuccess()) {
             future.complete(MessagePermissionValidator.BroadcastResult.failure(securityResult.getErrorMessage()));
+            return future;
+        }
+
+        NettyMessage message = NettyMessage.system(content);
+        int successCount = broadcastInternal(message, excludeUserId);
+        future.complete(MessagePermissionValidator.BroadcastResult.success(successCount));
+        return future;
+    }
+
+    /**
+     * 内部异步发送系统消息（无需 Token）
+     *
+     * <p>服务端主动推送的异步版本，跳过所有安全校验。适用于定时任务、事件驱动等需要异步推送的场景。
+     *
+     * @param userId   接收用户ID
+     * @param content  消息内容
+     * @return 包含发送结果的 {@link CompletableFuture}，异步完成
+     */
+    public CompletableFuture<MessagePermissionValidator.SendResult> sendSystemMessageAsyncInternal(String userId, String content) {
+        CompletableFuture<MessagePermissionValidator.SendResult> future = new CompletableFuture<>();
+
+        if (!validateUserId(userId) || !validateContent(content)) {
+            future.complete(MessagePermissionValidator.SendResult.failure("参数验证失败"));
+            return future;
+        }
+
+        NettyMessage message = NettyMessage.system(content);
+        sendToUser("SYSTEM", userId, message, future::complete);
+        return future;
+    }
+
+    /**
+     * 内部异步广播系统消息（无需 Token）
+     *
+     * @param content 消息内容
+     * @return 包含广播结果的 {@link CompletableFuture}，异步完成
+     */
+    public CompletableFuture<MessagePermissionValidator.BroadcastResult> broadcastSystemMessageAsyncInternal(String content) {
+        return broadcastSystemMessageAsyncInternal(content, null);
+    }
+
+    /**
+     * 内部异步广播系统消息（可排除指定用户，无需 Token）
+     *
+     * @param content        消息内容
+     * @param excludeUserId  需要排除的用户ID，为 {@code null} 时不排除任何用户
+     * @return 包含广播结果的 {@link CompletableFuture}，异步完成
+     */
+    public CompletableFuture<MessagePermissionValidator.BroadcastResult> broadcastSystemMessageAsyncInternal(String content, String excludeUserId) {
+        CompletableFuture<MessagePermissionValidator.BroadcastResult> future = new CompletableFuture<>();
+
+        if (!validateContent(content)) {
+            future.complete(MessagePermissionValidator.BroadcastResult.failure("消息内容不能为空"));
             return future;
         }
 
@@ -515,7 +745,15 @@ public class WebSocketMessageService {
     }
 
     /**
-     * 内部批量发送方法
+     * 内部批量发送方法，对指定用户列表逐一投递消息
+     *
+     * <p>优化策略：消息预先序列化为 JSON 字符串后复用，避免重复序列化开销。
+     * 遍历用户列表时，离线用户直接计入 offlineCount，无效用户ID计入 failedCount。
+     *
+     * @param senderId 消息发送者ID（已验证），用于填充消息的 fromUserId 字段
+     * @param userIds  接收用户ID集合
+     * @param message  待发送的消息对象
+     * @return 批量发送结果，包含成功、失败和离线用户数量统计
      */
     private MessagePermissionValidator.BatchSendResult sendToUsersInternal(String senderId, Collection<String> userIds, NettyMessage message) {
         if (message.getTimestamp() == null) {
@@ -570,34 +808,55 @@ public class WebSocketMessageService {
     // ==================== 内部广播方法 ====================
 
     /**
-     * 内部广播方法
+     * 内部广播方法，向所有在线用户投递消息
+     *
+     * <p>使用 {@code retainedDuplicate()} 为每个 Channel 创建帧的共享副本，
+     * 避免多个 Channel 竞争同一个帧的引用计数。发送完成后释放原始帧引用。
+     * <p>成功计数采用"乐观递增 + 失败回滚"策略：写入 Channel 时立即递增，
+     * 仅在异步监听器中检测到失败时回滚，避免异步竞态条件。
+     *
+     * @param message        待广播的消息对象
+     * @param excludeUserId  需要排除的用户ID，为 {@code null} 时不排除任何用户
+     * @return 成功接收消息的在线用户数
      */
     private int broadcastInternal(NettyMessage message, String excludeUserId) {
+        // 如果消息没有设置时间戳，则使用当前系统时间填充
         if (message.getTimestamp() == null) {
             message.setTimestamp(System.currentTimeMillis());
         }
 
         try {
+            // 将消息对象序列化为 JSON 字符串，并包装为 Netty 的文本 WebSocket 帧
             String jsonMessage = serializeMessage(message);
             TextWebSocketFrame frame = new TextWebSocketFrame(jsonMessage);
             
+            // 如果需要排除某个用户，则根据用户 ID 查找其对应的 Channel
             Channel excludeChannel = null;
             if (StringUtils.hasText(excludeUserId)) {
                 excludeChannel = sessionManager.getChannel(excludeUserId);
             }
             
+            // 使用 AtomicInteger 保证多线程环境下成功计数器的线程安全
             AtomicInteger successCount = new AtomicInteger(0);
             
+            // 遍历所有在线用户的 Channel，逐条发送消息
             for (Channel channel : sessionManager.getAllChannels()) {
+                // 仅向活跃的 Channel 发送，并且跳过需要排除的 Channel
                 if (channel.isActive() && 
                     (excludeChannel == null || !channel.id().equals(excludeChannel.id()))) {
                     
+                    // retainedDuplicate() 创建帧的共享副本（引用计数 +1），避免多个 Channel 竞争同一个帧
+                    // writeAndFlush 将消息写入 Channel 并立即刷新输出
                     ChannelFuture future = channel.writeAndFlush(frame.retainedDuplicate());
+                    // 同步递增成功计数，避免异步 listener 的竞态条件
+                    successCount.incrementAndGet();
+                    totalSentMessages.incrementAndGet();
+                    // 添加异步监听器，仅在发送失败时修正计数并记录日志
                     future.addListener(f -> {
-                        if (f.isSuccess()) {
-                            successCount.incrementAndGet();
-                            totalSentMessages.incrementAndGet();
-                        } else {
+                        if (!f.isSuccess()) {
+                            // 发送失败：回滚成功计数，递增全局失败消息总数
+                            successCount.decrementAndGet();
+                            totalSentMessages.decrementAndGet();
                             totalFailedMessages.incrementAndGet();
                             log.warn("广播消息到 Channel {} 失败: {}", channel.id(), f.cause().getMessage());
                         }
@@ -605,8 +864,10 @@ public class WebSocketMessageService {
                 }
             }
             
+            // 释放原始帧的引用，此时 retainedDuplicate 创建的副本引用仍由各 Channel 持有
             frame.release();
             
+            // 获取最终发送成功数量，并根据是否排除用户输出不同格式的日志
             int finalSuccessCount = successCount.get();
             if (StringUtils.hasText(excludeUserId)) {
                 log.info("广播消息给 {} 个在线用户（排除用户 {}）", finalSuccessCount, excludeUserId);
@@ -615,6 +876,7 @@ public class WebSocketMessageService {
             }
             return finalSuccessCount;
         } catch (Exception e) {
+            // 捕获序列化或发送过程中的任何异常，记录错误日志并返回 0
             log.error("广播消息失败", e);
             return 0;
         }
@@ -623,7 +885,10 @@ public class WebSocketMessageService {
     // ==================== 参数验证和工具方法 ====================
 
     /**
-     * 验证用户ID
+     * 验证用户ID是否有效（非空且非空白字符串）
+     *
+     * @param userId 待验证的用户ID
+     * @return {@code true} 表示用户ID有效，{@code false} 表示无效
      */
     private boolean validateUserId(String userId) {
         if (!StringUtils.hasText(userId)) {
@@ -634,7 +899,10 @@ public class WebSocketMessageService {
     }
 
     /**
-     * 验证消息对象
+     * 验证消息对象是否非空
+     *
+     * @param message 待验证的消息对象
+     * @return {@code true} 表示消息对象有效，{@code false} 表示为 {@code null}
      */
     private boolean validateMessage(NettyMessage message) {
         if (message == null) {
@@ -645,7 +913,10 @@ public class WebSocketMessageService {
     }
 
     /**
-     * 验证消息内容
+     * 验证消息内容是否非空
+     *
+     * @param content 待验证的消息内容
+     * @return {@code true} 表示内容有效，{@code false} 表示为 {@code null}
      */
     private boolean validateContent(String content) {
         if (content == null) {
@@ -656,7 +927,15 @@ public class WebSocketMessageService {
     }
 
     /**
-     * 序列化消息（带缓存优化）
+     * 将消息对象序列化为 JSON 字符串（带缓存优化）
+     *
+     * <p>对于系统消息和广播消息类型，使用内存缓存避免重复序列化相同内容。
+     * 缓存Key为消息类型与内容的组合，缓存超过 {@value MAX_CACHE_SIZE} 条时自动清空。
+     * 私聊等个性化消息不使用缓存，直接序列化。
+     *
+     * @param message 待序列化的消息对象
+     * @return 序列化后的 JSON 字符串
+     * @throws Exception 当 JSON 序列化过程中发生错误时抛出
      */
     private String serializeMessage(NettyMessage message) throws Exception {
         // 对于系统消息和广播消息，使用缓存优化
@@ -682,14 +961,19 @@ public class WebSocketMessageService {
     // ==================== 统计和查询方法 ====================
 
     /**
-     * 获取在线用户数
+     * 获取当前在线用户数量
+     *
+     * @return 在线用户数
      */
     public int getOnlineCount() {
         return sessionManager.getOnlineCount();
     }
 
     /**
-     * 判断用户是否在线
+     * 判断指定用户是否在线
+     *
+     * @param userId 用户ID
+     * @return {@code true} 表示用户在线，{@code false} 表示不在线或用户ID无效
      */
     public boolean isUserOnline(String userId) {
         if (!StringUtils.hasText(userId)) {
@@ -699,7 +983,9 @@ public class WebSocketMessageService {
     }
 
     /**
-     * 获取所有在线用户ID列表
+     * 获取所有在线用户的ID列表
+     *
+     * @return 在线用户ID集合，按 Channel 注册顺序排列
      */
     public Collection<String> getOnlineUserIds() {
         return sessionManager.getAllChannels()
@@ -711,6 +997,10 @@ public class WebSocketMessageService {
 
     /**
      * 获取消息发送统计信息
+     *
+     * <p>统计信息包含：已发送消息总数、发送失败总数、被拦截消息总数和缓存条目数。
+     *
+     * @return 消息统计对象，包含各项统计指标
      */
     public MessagePermissionValidator.MessageStatistics getMessageStatistics() {
         return new MessagePermissionValidator.MessageStatistics(
@@ -722,7 +1012,7 @@ public class WebSocketMessageService {
     }
 
     /**
-     * 清空消息缓存
+     * 清空消息序列化缓存，释放缓存占用的内存
      */
     public void clearMessageCache() {
         messageCache.clear();
@@ -730,7 +1020,7 @@ public class WebSocketMessageService {
     }
 
     /**
-     * 重置统计信息
+     * 重置所有消息发送统计计数器为零
      */
     public void resetStatistics() {
         totalSentMessages.set(0);
@@ -740,7 +1030,10 @@ public class WebSocketMessageService {
     }
 
     /**
-     * 清理频率限制器
+     * 清理已离线用户的频率限制器，释放无用的内存占用
+     *
+     * <p>遍历所有已注册的频率限制器，移除对应用户已不在线的条目。
+     * 建议定期调用此方法以防止内存泄漏。
      */
     public void cleanupRateLimiters() {
         rateLimiters.entrySet().removeIf(entry -> {

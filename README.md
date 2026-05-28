@@ -944,6 +944,48 @@ public class WebSocketTestController {
         messageService.cleanupRateLimiters();
         return Result.success("频率限制器已清理", null);
     }
+
+    // ==================== 内部推送 API（无需 Token）====================
+
+    /**
+     * 内部推送系统消息给指定用户（供定时任务/事件驱动使用）
+     */
+    @PostMapping("/internal/send")
+    public Result<MessagePermissionValidator.SendResult> sendSystemMessageInternal(
+            @RequestParam String userId,
+            @RequestParam String content) {
+
+        log.info("内部推送系统消息 - userId: {}, content: {}", userId, content);
+        MessagePermissionValidator.SendResult result = messageService.sendSystemMessageInternal(userId, content);
+        return Result.success(result);
+    }
+
+    /**
+     * 内部广播系统消息（无需 Token）
+     */
+    @PostMapping("/internal/broadcast")
+    public Result<MessagePermissionValidator.BroadcastResult> broadcastSystemMessageInternal(
+            @RequestParam String content,
+            @RequestParam(required = false) String excludeUserId) {
+
+        log.info("内部广播系统消息 - content: {}, excludeUserId: {}", content, excludeUserId);
+        MessagePermissionValidator.BroadcastResult result = messageService.broadcastSystemMessageInternal(content, excludeUserId);
+        return Result.success(result);
+    }
+
+    /**
+     * 内部批量发送系统消息
+     */
+    @PostMapping("/internal/batch")
+    public Result<MessagePermissionValidator.BatchSendResult> sendSystemMessageToUsersInternal(
+            @RequestParam String userIds,
+            @RequestParam String content) {
+
+        Collection<String> userIdList = Arrays.asList(userIds.split(","));
+        log.info("内部批量推送 - userIds: {}, content: {}", userIdList, content);
+        MessagePermissionValidator.BatchSendResult result = messageService.sendSystemMessageToUsersInternal(userIdList, content);
+        return Result.success(result);
+    }
 }
 ```
 
@@ -1326,6 +1368,214 @@ public TokenAuthenticator defaultTokenAuthenticator() {
 ```
 
 这允许用户通过创建自定义 Bean 来覆盖默认实现。
+
+
+## 消息发送 API
+
+`WebSocketMessageService` 提供了丰富的消息推送能力，分为两大类：
+
+- **安全 API**：需要传入 Token，经过身份认证、在线检查、频率限制和权限校验
+- **内部 API**：无需 Token，跳过所有安全校验，专供服务端主动推送（定时任务、事件驱动等场景）
+
+### 功能总览
+
+| 方法 | 说明 | 需要 Token | 异步版本 |
+|------|------|:----------:|:--------:|
+| `sendSystemMessage` | 发送系统消息给指定用户 | ✅ | ✅ |
+| `sendPrivateMessage` | 发送私聊消息 | ✅ | ✅ |
+| `broadcastSystemMessage` | 广播系统消息给所有在线用户 | ✅ | ✅ |
+| `broadcastMessage` | 广播普通消息（排除发送者） | ✅ | ❌ |
+| `sendSystemMessageToUsers` | 批量发送系统消息给多个用户 | ✅ | ❌ |
+| `sendSystemMessageInternal` | 内部发送系统消息（无需 Token） | ❌ | ✅ |
+| `broadcastSystemMessageInternal` | 内部广播系统消息（无需 Token） | ❌ | ✅ |
+| `sendSystemMessageToUsersInternal` | 内部批量发送系统消息（无需 Token） | ❌ | ❌ |
+
+### 安全 API（需要 Token）
+
+#### 发送系统消息
+
+```java
+@Autowired
+private WebSocketMessageService messageService;
+
+// 同步发送
+MessagePermissionValidator.SendResult result = messageService.sendSystemMessage(
+    adminToken,    // 管理员 Token
+    userId,        // 接收用户ID
+    "系统维护通知：服务器将在 10 分钟后重启"
+);
+
+if (result.isSuccess()) {
+    log.info("系统消息发送成功");
+} else {
+    log.error("发送失败: {}", result.getErrorMessage());
+}
+```
+
+#### 发送私聊消息
+
+```java
+MessagePermissionValidator.SendResult result = messageService.sendPrivateMessage(
+    senderToken,   // 发送者 Token
+    toUserId,      // 接收者ID
+    "你好，能加个好友吗？"
+);
+```
+
+#### 广播系统消息
+
+```java
+// 广播给所有在线用户
+MessagePermissionValidator.BroadcastResult result = messageService.broadcastSystemMessage(
+    adminToken,
+    "系统公告：新版功能已上线"
+);
+
+// 广播并排除指定用户
+MessagePermissionValidator.BroadcastResult result = messageService.broadcastSystemMessage(
+    adminToken,
+    "系统公告：新版功能已上线",
+    excludeUserId   // 可选：排除某个用户
+);
+
+log.info("成功广播给 {} 个用户", result.getSuccessCount());
+```
+
+#### 广播普通消息
+
+```java
+// 普通用户发起广播，自动排除发送者本人
+MessagePermissionValidator.BroadcastResult result = messageService.broadcastMessage(
+    senderToken,
+    "大家好，我是新来的！"
+);
+```
+
+#### 批量发送系统消息
+
+```java
+Collection<String> userIds = Arrays.asList("user1", "user2", "user3");
+MessagePermissionValidator.BatchSendResult result = messageService.sendSystemMessageToUsers(
+    adminToken,
+    userIds,
+    "恭喜您获得 VIP 资格"
+);
+
+log.info("成功: {}, 失败: {}, 离线: {}", 
+    result.getSuccessCount(), result.getFailedCount(), result.getOfflineCount());
+```
+
+#### 异步发送
+
+所有安全 API 均支持异步版本，通过 `CompletableFuture` 返回结果：
+
+```java
+// 异步发送系统消息
+messageService.sendSystemMessageAsync(adminToken, userId, content)
+    .thenAccept(result -> {
+        if (result.isSuccess()) {
+            log.info("消息发送成功");
+        } else {
+            log.warn("发送失败: {}", result.getErrorMessage());
+        }
+    });
+
+// 异步发送私聊消息
+messageService.sendPrivateMessageAsync(senderToken, toUserId, content)
+    .thenAccept(result -> { ... });
+
+// 异步广播系统消息
+messageService.broadcastSystemMessageAsync(adminToken, content)
+    .thenAccept(result -> {
+        log.info("成功广播给 {} 个用户", result.getSuccessCount());
+    });
+```
+
+### 内部 API（服务端主动推送，无需 Token）
+
+内部 API 跳过所有安全校验，适用于定时任务、事件驱动、微服务间调用等服务端主动推送场景。发送者ID固定为 `"SYSTEM"`。
+
+#### 内部发送系统消息
+
+```java
+// 定时任务：每日提醒
+@Scheduled(cron = "0 0 9 * * ?")
+public void dailyReminder() {
+    Collection<String> onlineUsers = messageService.getOnlineUserIds();
+    for (String userId : onlineUsers) {
+        messageService.sendSystemMessageInternal(userId, "早上好！今日待办事项已更新");
+    }
+}
+```
+
+#### 内部广播系统消息
+
+```java
+// 事件驱动：系统公告
+eventBus.addListener(SystemNoticeEvent.class, event -> {
+    messageService.broadcastSystemMessageInternal(event.getContent());
+});
+
+// 带回调的内部广播
+messageService.sendSystemMessageInternal(userId, "您有一条新的审批通知", result -> {
+    if (result.isSuccess()) {
+        log.info("内部消息投递成功: userId={}", userId);
+    }
+});
+```
+
+#### 内部批量发送
+
+```java
+// 批量推送通知
+messageService.sendSystemMessageToUsersInternal(
+    Arrays.asList("user1", "user2", "user3"),
+    "恭喜您获得 VIP 资格"
+);
+```
+
+#### 内部异步发送
+
+```java
+// 异步内部发送
+messageService.sendSystemMessageAsyncInternal(userId, "您有一条新的审批通知")
+    .thenAccept(result -> {
+        if (result.isSuccess()) {
+            log.info("内部异步推送成功");
+        }
+    });
+
+// 异步内部广播
+messageService.broadcastSystemMessageAsyncInternal("系统升级完成")
+    .thenAccept(result -> {
+        log.info("内部广播成功给 {} 个用户", result.getSuccessCount());
+    });
+```
+
+### 结果对象说明
+
+#### SendResult
+
+| 方法 | 说明 |
+|------|------|
+| `isSuccess()` | 是否发送成功 |
+| `getErrorMessage()` | 失败原因，成功时为 `null` |
+
+#### BroadcastResult
+
+| 方法 | 说明 |
+|------|------|
+| `isSuccess()` | 是否成功 |
+| `getSuccessCount()` | 成功接收的用户数 |
+
+#### BatchSendResult
+
+| 方法 | 说明 |
+|------|------|
+| `isSuccess()` | 是否成功 |
+| `getSuccessCount()` | 成功发送的用户数 |
+| `getFailedCount()` | 发送失败的用户数 |
+| `getOfflineCount()` | 离线用户数 |
 
 
 ## 客户端连接示例
