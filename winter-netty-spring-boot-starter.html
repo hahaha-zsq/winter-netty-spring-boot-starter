@@ -774,10 +774,62 @@
 </head>
 <body>
 
+  <!-- ============================ ICON SPRITE ============================ -->
+  <svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="ic-overview" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/>
+    </symbol>
+    <symbol id="ic-features" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+    </symbol>
+    <symbol id="ic-arch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="4" width="16" height="4" rx="1"/><rect x="4" y="10" width="16" height="4" rx="1"/><rect x="4" y="16" width="16" height="4" rx="1"/>
+    </symbol>
+    <symbol id="ic-workflow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="4" r="2"/><circle cx="4" cy="20" r="2"/><circle cx="20" cy="20" r="2"/><line x1="12" y1="6" x2="4" y2="18"/><line x1="12" y1="6" x2="20" y2="18"/>
+    </symbol>
+    <symbol id="ic-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2a3 3 0 0 1 3 3v1h3a2 2 0 0 1 2 2v3h1a3 3 0 0 1 0 6h-1v3a2 2 0 0 1-2 2h-3v1a3 3 0 0 1-6 0v-1H7a2 2 0 0 1-2-2v-3H4a3 3 0 0 1 0-6h1V8a2 2 0 0 1 2-2h3V5a3 3 0 0 1 3-3z"/>
+    </symbol>
+    <symbol id="ic-msg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/>
+    </symbol>
+    <symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </symbol>
+    <symbol id="ic-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+    </symbol>
+    <symbol id="ic-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+    </symbol>
+    <symbol id="ic-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+    </symbol>
+    <symbol id="ic-server" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
+    </symbol>
+    <symbol id="ic-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+    </symbol>
+    <symbol id="ic-github" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+    </symbol>
+    <symbol id="ic-maven" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/>
+    </symbol>
+    <symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+    </symbol>
+    <symbol id="ic-dot-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="4" cy="4" r="1"/><circle cx="12" cy="4" r="1"/><circle cx="20" cy="4" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="20" cy="12" r="1"/><circle cx="4" cy="20" r="1"/><circle cx="12" cy="20" r="1"/><circle cx="20" cy="20" r="1"/>
+    </symbol>
+  </svg>
+
   <!-- ============================ NAV ============================ -->
   <nav class="nav">
     <div class="nav-brand">
-      <span class="dot"></span>WINTER NETTY
+      <svg width="14" height="14" style="vertical-align:middle;margin-right:var(--space-sm)"><use href="#ic-dot-grid"/></svg>WINTER NETTY
     </div>
     <div class="nav-meta">
       <span>v0.0.6</span>
@@ -796,23 +848,38 @@
     </p>
     <div class="hero-stats">
       <div class="hero-stat">
-        <span class="hero-stat-value">20</span>
+        <span class="hero-stat-value">
+          <svg width="18" height="18" style="vertical-align:middle;margin-right:4px;color:var(--text-disabled)"><use href="#ic-code"/></svg>
+          20
+        </span>
         <span class="hero-stat-label">Java 源文件</span>
       </div>
       <div class="hero-stat">
-        <span class="hero-stat-value">18</span>
+        <span class="hero-stat-value">
+          <svg width="18" height="18" style="vertical-align:middle;margin-right:4px;color:var(--text-disabled)"><use href="#ic-ext"/></svg>
+          18
+        </span>
         <span class="hero-stat-label">扩展点</span>
       </div>
       <div class="hero-stat">
-        <span class="hero-stat-value">8</span>
+        <span class="hero-stat-value">
+          <svg width="18" height="18" style="vertical-align:middle;margin-right:4px;color:var(--text-disabled)"><use href="#ic-msg"/></svg>
+          8
+        </span>
         <span class="hero-stat-label">消息 API</span>
       </div>
       <div class="hero-stat">
-        <span class="hero-stat-value">4</span>
+        <span class="hero-stat-value">
+          <svg width="18" height="18" style="vertical-align:middle;margin-right:4px;color:var(--text-disabled)"><use href="#ic-box"/></svg>
+          4
+        </span>
         <span class="hero-stat-label">消息类型</span>
       </div>
       <div class="hero-stat">
-        <span class="hero-stat-value">8</span>
+        <span class="hero-stat-value">
+          <svg width="18" height="18" style="vertical-align:middle;margin-right:4px;color:var(--text-disabled)"><use href="#ic-arch"/></svg>
+          8
+        </span>
         <span class="hero-stat-label">管道处理器</span>
       </div>
     </div>
@@ -821,6 +888,7 @@
   <!-- ============================ OVERVIEW ============================ -->
   <section class="section">
     <div class="section-header">
+      <svg width="14" height="14" style="flex-shrink:0;color:var(--text-disabled)"><use href="#ic-overview"/></svg>
       <span class="section-number">[01]</span>
       <span class="section-line"></span>
     </div>
@@ -831,6 +899,7 @@
     <div class="overview-grid">
       <div>
         <p class="overview-highlight">
+          <svg width="18" height="18" style="vertical-align:middle;margin-right:8px;color:var(--accent)"><use href="#ic-zap"/></svg>
           将基于 Netty 的 WebSocket 服务零配置地嵌入 Spring Boot 应用的启动器，
           一行配置即可运行。
         </p>
@@ -845,7 +914,10 @@
           的 EventLoopGroup、ChannelInitializer、业务 Handler 等全部组件。
           开发者无需编写任何 Netty 样板代码，只需专注于消息处理逻辑。
         </p>
-        <div class="sub-heading">为什么选择 Winter Netty</div>
+        <div class="sub-heading">
+          <svg width="14" height="14" style="vertical-align:middle;margin-right:6px;color:var(--accent)"><use href="#ic-overview"/></svg>
+          为什么选择 Winter Netty
+        </div>
         <ul class="reason-list">
           <li>传统方式集成 Netty WebSocket 需要大量样板代码：启动配置、生命周期管理、线程协调、断线重连等。</li>
           <li>本 Starter 通过 Auto-Configuration 自动化这一切，让开发者专注于业务而非基础设施。</li>
@@ -857,12 +929,18 @@
       <div>
         <div class="flex flex-col gap-md">
           <div>
-            <span class="label" style="display:block;margin-bottom:var(--space-xs)">Java 版本</span>
+            <span class="label" style="display:block;margin-bottom:var(--space-xs)">
+              <svg width="12" height="12" style="vertical-align:middle;margin-right:4px"><use href="#ic-gear"/></svg>
+              Java 版本
+            </span>
             <span style="font-family:var(--font-mono);font-size:24px;font-weight:700;color:var(--text-display);">1.8</span>
             <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-disabled);margin-left:var(--space-sm);">+ 兼容</span>
           </div>
           <div>
-            <span class="label" style="display:block;margin-bottom:var(--space-xs)">Maven 中央仓库</span>
+            <span class="label" style="display:block;margin-bottom:var(--space-xs)">
+              <svg width="12" height="12" style="vertical-align:middle;margin-right:4px"><use href="#ic-maven"/></svg>
+              Maven 中央仓库
+            </span>
             <a href="https://central.sonatype.com/artifact/io.github.hahaha-zsq/winter-netty-spring-boot-starter" target="_blank" style="font-family:var(--font-mono);font-size:14px;font-weight:400;color:var(--text-secondary);text-decoration:none;display:block;line-height:1.6;">
               io.github.hahaha-zsq<br/>
               <span style="color:var(--text-disabled);font-size:12px;">winter-netty-spring-boot-starter</span>
@@ -874,11 +952,17 @@
 <span class="cm">&lt;/dependency&gt;</span></div>
           </div>
           <div>
-            <span class="label" style="display:block;margin-bottom:var(--space-xs)">开源协议</span>
+            <span class="label" style="display:block;margin-bottom:var(--space-xs)">
+              <svg width="12" height="12" style="vertical-align:middle;margin-right:4px"><use href="#ic-shield"/></svg>
+              开源协议
+            </span>
             <span style="font-family:var(--font-mono);font-size:16px;font-weight:400;color:var(--text-secondary);">Apache 2.0</span>
           </div>
           <div>
-            <span class="label" style="display:block;margin-bottom:var(--space-xs)">代码仓库</span>
+            <span class="label" style="display:block;margin-bottom:var(--space-xs)">
+              <svg width="12" height="12" style="vertical-align:middle;margin-right:4px"><use href="#ic-github"/></svg>
+              代码仓库
+            </span>
             <span style="font-family:var(--font-mono);font-size:14px;font-weight:400;color:var(--interactive);">github.com/hahaha-zsq</span>
           </div>
         </div>
@@ -889,6 +973,7 @@
   <!-- ============================ FEATURES ============================ -->
   <section class="section">
     <div class="section-header">
+      <svg width="14" height="14" style="flex-shrink:0;color:var(--text-disabled)"><use href="#ic-features"/></svg>
       <span class="section-number">[02]</span>
       <span class="section-line"></span>
     </div>
@@ -908,43 +993,100 @@
         <span class="card-number">02</span>
         <span class="card-title">Token 认证机制</span>
         <span class="card-desc">在 WebSocket 握手阶段拦截请求进行身份认证。支持 URL 参数（?token=）、Authorization: Bearer 头、自定义 Token 头三种提取方式。通过 TokenAuthenticator 接口可插拔替换，认证失败返回 401/403。</span>
-        <span class="card-tag">安全</span>
+        <span class="card-tag">
+          <svg width="10" height="10" style="vertical-align:middle;margin-right:3px"><use href="#ic-shield"/></svg>
+          安全
+        </span>
       </div>
       <div class="feature-card">
         <span class="card-number">03</span>
         <span class="card-title">双向会话管理</span>
         <span class="card-desc">维护 userId 到 Channel、channelId 到 userId 的双向映射。基于 ChannelGroup 管理所有在线连接。自动清理断线会话，支持重复登录踢下线 — 同一 userId 新连接会关闭旧连接。</span>
-        <span class="card-tag">核心</span>
+        <span class="card-tag">
+          <svg width="10" height="10" style="vertical-align:middle;margin-right:3px"><use href="#ic-gear"/></svg>
+          核心
+        </span>
       </div>
       <div class="feature-card">
         <span class="card-number">04</span>
         <span class="card-title">消息权限校验</span>
         <span class="card-desc">MessagePermissionValidator 接口支持按操作类型（PRIVATE / BROADCAST / SYSTEM）校验用户权限。内置速率限制器（默认 10 条/秒/用户），防止消息洪泛。可扩展为基于角色的访问控制。</span>
-        <span class="card-tag">安全</span>
+        <span class="card-tag">
+          <svg width="10" height="10" style="vertical-align:middle;margin-right:3px"><use href="#ic-shield"/></svg>
+          安全
+        </span>
       </div>
       <div class="feature-card">
         <span class="card-number">05</span>
         <span class="card-title">双套消息推送 API</span>
         <span class="card-desc">安全 API（需 Token，经完整鉴权）：sendSystemMessage / sendPrivateMessage / broadcastSystemMessage / broadcastMessage / sendSystemMessageToUsers，均支持同步与 CompletableFuture 异步。内部 API（无需 Token，服务端专用）：sendSystemMessageInternal / broadcastSystemMessageInternal / sendSystemMessageToUsersInternal，适用于定时任务与事件驱动。</span>
-        <span class="card-tag">API</span>
+        <span class="card-tag">
+          <svg width="10" height="10" style="vertical-align:middle;margin-right:3px"><use href="#ic-code"/></svg>
+          API
+        </span>
       </div>
       <div class="feature-card">
         <span class="card-number">06</span>
         <span class="card-title">可配置心跳检测</span>
         <span class="card-desc">集成 Netty IdleStateHandler，可独立配置读空闲、写空闲、读写全部空闲超时时间。超时后自动关闭连接并清理会话，防止僵尸连接占用资源。</span>
-        <span class="card-tag">核心</span>
+        <span class="card-tag">
+          <svg width="10" height="10" style="vertical-align:middle;margin-right:3px"><use href="#ic-gear"/></svg>
+          核心
+        </span>
       </div>
       <div class="feature-card">
         <span class="card-number">07</span>
         <span class="card-title">CORS 跨域 + 连接限流</span>
         <span class="card-desc">内置 CORS 处理器，支持跨域 WebSocket 连接。可配置全局最大连接数（默认 1000），超出返回 503。结合用户级速率限制，从多个维度保障服务稳定性。</span>
-        <span class="card-tag">基础设施</span>
+        <span class="card-tag">
+          <svg width="10" height="10" style="vertical-align:middle;margin-right:3px"><use href="#ic-server"/></svg>
+          基础设施
+        </span>
       </div>
       <div class="feature-card">
         <span class="card-number">08</span>
         <span class="card-title">可插拔 Netty 管道</span>
         <span class="card-desc">NettyServerPipelineCustomizer 接口允许完全自定义服务端管道 Handler 链。客户端同理支持多个 NettyClientPipelineCustomizer 叠加。WebSocket 模式默认提供完整 8 处理器管道。</span>
-        <span class="card-tag">扩展</span>
+        <span class="card-tag">
+          <svg width="10" height="10" style="vertical-align:middle;margin-right:3px"><use href="#ic-ext"/></svg>
+          扩展
+        </span>
+      </div>
+      <div class="feature-card">
+        <span class="card-number">09</span>
+        <span class="card-title">独立线程池隔离</span>
+        <span class="card-desc">服务端与客户端使用独立的 ThreadPoolTaskExecutor。支持分别配置核心线程数、最大线程数、队列容量、线程名前缀、keep-alive 秒数。关闭时可配置是否等待任务完成及超时时间。</span>
+        <span class="card-tag">
+          <svg width="10" height="10" style="vertical-align:middle;margin-right:3px"><use href="#ic-server"/></svg>
+          基础设施
+        </span>
+      </div>
+      <div class="feature-card">
+        <span class="card-number">10</span>
+        <span class="card-title">Spring 生命周期管理</span>
+        <span class="card-desc">@PostConstruct 注解方法在独立线程中异步启动服务，不阻塞 Spring 容器初始化。@PreDestroy 方法进行优雅关闭：先关闭 Channel 再关闭 EventLoopGroup，支持超时回收。</span>
+        <span class="card-tag">
+          <svg width="10" height="10" style="vertical-align:middle;margin-right:3px"><use href="#ic-gear"/></svg>
+          核心
+        </span>
+      </div>
+      <div class="feature-card">
+        <span class="card-number">11</span>
+        <span class="card-title">消息序列化缓存</span>
+        <span class="card-desc">SYSTEM 和 BROADCAST 类型消息的 JSON 序列化结果缓存在内存中，相同内容的消息无需重复序列化。内置 totalSent、totalFailed、totalBlocked 统计计数器，可通过 API 查询和重置。</span>
+        <span class="card-tag">
+          <svg width="10" height="10" style="vertical-align:middle;margin-right:3px"><use href="#ic-zap"/></svg>
+          性能
+        </span>
+      </div>
+      <div class="feature-card">
+        <span class="card-number">12</span>
+        <span class="card-title">TCP 客户端支持</span>
+        <span class="card-desc">基于 Netty Bootstrap + NioSocketChannel 的 TCP 客户端。可配置目标主机、端口、线程池。支持多个 NettyClientPipelineCustomizer 构建管道。默认关闭，按需启用。</span>
+        <span class="card-tag">
+          <svg width="10" height="10" style="vertical-align:middle;margin-right:3px"><use href="#ic-ext"/></svg>
+          扩展
+        </span>
       </div>
       <div class="feature-card">
         <span class="card-number">09</span>
@@ -976,6 +1118,7 @@
   <!-- ============================ ARCHITECTURE ============================ -->
   <section class="section">
     <div class="section-header">
+      <svg width="14" height="14" style="flex-shrink:0;color:var(--text-disabled)"><use href="#ic-arch"/></svg>
       <span class="section-number">[03]</span>
       <span class="section-line"></span>
     </div>
@@ -984,7 +1127,10 @@
       架构
     </h2>
 
-    <p class="sub-heading" style="margin-top:0">WebSocket 服务端管道</p>
+    <p class="sub-heading" style="margin-top:0">
+      <svg width="14" height="14" style="vertical-align:middle;margin-right:6px;color:var(--accent)"><use href="#ic-arch"/></svg>
+      WebSocket 服务端管道
+    </p>
     <p class="pipeline-desc">
       每个 WebSocket 连接建立时，ChannelPipeline 按以下顺序注册 8 个处理器。
       标记红色的两个为可扩展节点 —— 开发者可替换认证逻辑与消息处理逻辑。
@@ -1000,14 +1146,23 @@
       <span class="pipeline-arrow">&rarr;</span>
       <span class="pipeline-node">CorsHandler</span>
       <span class="pipeline-arrow">&rarr;</span>
-      <span class="pipeline-node accent">WebSocketHandshakeAuth</span>
+      <span class="pipeline-node accent">
+        <svg width="11" height="11" style="vertical-align:middle;margin-right:4px"><use href="#ic-shield"/></svg>
+        WebSocketHandshakeAuth
+      </span>
       <span class="pipeline-arrow">&rarr;</span>
       <span class="pipeline-node">WebSocketProtocol</span>
       <span class="pipeline-arrow">&rarr;</span>
-      <span class="pipeline-node accent">WebSocketServerHandler</span>
+      <span class="pipeline-node accent">
+        <svg width="11" height="11" style="vertical-align:middle;margin-right:4px"><use href="#ic-msg"/></svg>
+        WebSocketServerHandler
+      </span>
     </div>
 
-    <p class="label" style="margin:var(--space-xl) 0 var(--space-sm)">各处理器职责</p>
+    <p class="label" style="margin:var(--space-xl) 0 var(--space-sm)">
+      <svg width="12" height="12" style="vertical-align:middle;margin-right:4px"><use href="#ic-dot-grid"/></svg>
+      各处理器职责
+    </p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);margin-bottom:var(--space-xl)">
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:var(--space-sm) var(--space-md)">
         <span class="caption" style="display:block;color:var(--text-display)">IdleStateHandler</span>
@@ -1039,7 +1194,10 @@
       </div>
     </div>
 
-    <p class="label" style="margin-bottom:var(--space-sm)">组件架构图</p>
+    <p class="label" style="margin-bottom:var(--space-sm)">
+      <svg width="12" height="12" style="vertical-align:middle;margin-right:4px"><use href="#ic-server"/></svg>
+      组件架构图
+    </p>
     <div class="arch-tree">Spring Boot 应用
   &boxvr;&boxH; winter-netty 配置 (application.yml)
   &boxvr;&boxH; @EnableAutoConfiguration (via spring.factories)
@@ -1057,7 +1215,10 @@
   &boxur;&boxH; <span class="sec">客户端组件</span> (TCP 启用时)
         <span class="dim">NettyClient &rarr; EventLoopGroup &rarr; Bootstrap &rarr; connect(host, port)</span></div>
 
-    <p class="label" style="margin:var(--space-xl) 0 var(--space-sm)">Bean 加载顺序</p>
+    <p class="label" style="margin:var(--space-xl) 0 var(--space-sm)">
+      <svg width="12" height="12" style="vertical-align:middle;margin-right:4px"><use href="#ic-workflow"/></svg>
+      Bean 加载顺序
+    </p>
     <p class="pipeline-desc">
       Spring 容器启动时，Auto-Configuration 按以下顺序注册 11 个 Bean。
       每个步骤的 Bean 都可以被自定义 <span class="inline-code-sec">@Component</span> 替代。
@@ -1086,7 +1247,10 @@
       <span class="bean-order-item">NettyServer</span>
     </div>
 
-    <p class="label" style="margin:var(--space-xl) 0 var(--space-sm)">WebSocket 消息生命周期</p>
+    <p class="label" style="margin:var(--space-xl) 0 var(--space-sm)">
+      <svg width="12" height="12" style="vertical-align:middle;margin-right:4px"><use href="#ic-msg"/></svg>
+      WebSocket 消息生命周期
+    </p>
     <p class="pipeline-desc">
       一条 PRIVATE 消息从发送到接收的完整链路：
     </p>
@@ -1133,7 +1297,10 @@
       </div>
     </div>
 
-    <p class="label" style="margin:var(--space-xl) 0 var(--space-sm)">配置场景</p>
+    <p class="label" style="margin:var(--space-xl) 0 var(--space-sm)">
+      <svg width="12" height="12" style="vertical-align:middle;margin-right:4px"><use href="#ic-gear"/></svg>
+      配置场景
+    </p>
     <div class="config-grid">
       <div class="config-card">
         <span class="config-name">仅 WebSocket 服务端</span>
@@ -1161,6 +1328,7 @@
   <!-- ============================ WORKFLOW ============================ -->
   <section class="section">
     <div class="section-header">
+      <svg width="14" height="14" style="flex-shrink:0;color:var(--text-disabled)"><use href="#ic-workflow"/></svg>
       <span class="section-number">[04]</span>
       <span class="section-line"></span>
     </div>
@@ -1173,7 +1341,10 @@
       <div class="workflow-step">
         <span class="step-num">01</span>
         <div class="step-content">
-          <div class="step-title">添加 Maven 依赖</div>
+          <div class="step-title">
+            <svg width="14" height="14" style="vertical-align:middle;margin-right:6px;color:var(--text-disabled)"><use href="#ic-maven"/></svg>
+            添加 Maven 依赖
+          </div>
           <div class="step-desc">
             在项目的 <span class="inline-code-sec">pom.xml</span> 中引入以下依赖。已发布至 Maven 中央仓库，
             无需额外配置仓库地址。
@@ -1189,7 +1360,10 @@
       <div class="workflow-step">
         <span class="step-num">02</span>
         <div class="step-content">
-          <div class="step-title">配置 application.yml</div>
+          <div class="step-title">
+            <svg width="14" height="14" style="vertical-align:middle;margin-right:6px;color:var(--text-disabled)"><use href="#ic-gear"/></svg>
+            配置 application.yml
+          </div>
           <div class="step-desc">
             在配置文件中启用 WebSocket 服务。所有配置项均以 <span class="inline-code-sec">winter-netty</span> 为前缀，
             支持 IDE 自动补全（已提供 spring-configuration-metadata.json）。
@@ -1216,7 +1390,10 @@
       <div class="workflow-step">
         <span class="step-num">03</span>
         <div class="step-content">
-          <div class="step-title">启动 Spring Boot 应用</div>
+          <div class="step-title">
+            <svg width="14" height="14" style="vertical-align:middle;margin-right:6px;color:var(--text-disabled)"><use href="#ic-zap"/></svg>
+            启动 Spring Boot 应用
+          </div>
           <div class="step-desc">
             直接运行 Spring Boot 启动类。Auto-Configuration 自动检测依赖与配置，
             创建所有必要的 Bean。Netty 服务端通过 <span class="inline-code-sec">@PostConstruct</span>
@@ -1232,7 +1409,10 @@
       <div class="workflow-step">
         <span class="step-num">04</span>
         <div class="step-content">
-          <div class="step-title">客户端建立 WebSocket 连接</div>
+          <div class="step-title">
+            <svg width="14" height="14" style="vertical-align:middle;margin-right:6px;color:var(--text-disabled)"><use href="#ic-link"/></svg>
+            客户端建立 WebSocket 连接
+          </div>
           <div class="step-desc">
             客户端通过标准 WebSocket 协议连接至服务端。握手阶段自动完成 Token 提取与认证。
             认证通过后升级为 WebSocket 长连接，SessionManager 注册用户与 Channel 的映射关系。
@@ -1251,7 +1431,10 @@ ws.<span class="kw">onclose</span> = () =&gt; console.log(<span class="str">"[DI
       <div class="workflow-step">
         <span class="step-num">05</span>
         <div class="step-content">
-          <div class="step-title">消息收发与 REST API 推送</div>
+          <div class="step-title">
+            <svg width="14" height="14" style="vertical-align:middle;margin-right:6px;color:var(--text-disabled)"><use href="#ic-msg"/></svg>
+            消息收发与 REST API 推送
+          </div>
           <div class="step-desc">
             客户端可发送 HEARTBEAT（心跳）、BROADCAST（广播）、PRIVATE（私信）消息。
             服务端可通过注入 <span class="inline-code-sec">WebSocketMessageService</span> 在 REST 控制器中
@@ -1289,7 +1472,10 @@ ws.<span class="kw">onclose</span> = () =&gt; console.log(<span class="str">"[DI
       <div class="workflow-step">
         <span class="step-num">06</span>
         <div class="step-content">
-          <div class="step-title">断开连接与优雅关闭</div>
+          <div class="step-title">
+            <svg width="14" height="14" style="vertical-align:middle;margin-right:6px;color:var(--text-disabled)"><use href="#ic-shield"/></svg>
+            断开连接与优雅关闭
+          </div>
           <div class="step-desc">
             客户端断线时，<span class="inline-code-sec">channelInactive</span> 触发，
             SessionManager 自动移除 userId 与 Channel 的映射。应用关闭时，
@@ -1310,6 +1496,7 @@ ws.<span class="kw">onclose</span> = () =&gt; console.log(<span class="str">"[DI
   <!-- ============================ EXTENSION POINTS ============================ -->
   <section class="section">
     <div class="section-header">
+      <svg width="14" height="14" style="flex-shrink:0;color:var(--text-disabled)"><use href="#ic-ext"/></svg>
       <span class="section-number">[05]</span>
       <span class="section-line"></span>
     </div>
@@ -1371,7 +1558,10 @@ ws.<span class="kw">onclose</span> = () =&gt; console.log(<span class="str">"[DI
       </tbody>
     </table>
 
-    <p class="sub-heading" style="margin-top:var(--space-2xl)">典型扩展示例：JWT Token 认证</p>
+    <p class="sub-heading" style="margin-top:var(--space-2xl)">
+      <svg width="14" height="14" style="vertical-align:middle;margin-right:6px;color:var(--accent)"><use href="#ic-shield"/></svg>
+      典型扩展示例：JWT Token 认证
+    </p>
     <p class="body-sm mb-lg">
       替换 <span class="inline-code-sec">DefaultTokenAuthenticator</span> 只需创建一个
       <span class="inline-code-sec">@Component</span> 实现 <span class="inline-code-sec">TokenAuthenticator</span> 接口：
@@ -1394,7 +1584,10 @@ ws.<span class="kw">onclose</span> = () =&gt; console.log(<span class="str">"[DI
   }
 }</div>
 
-    <p class="sub-heading" style="margin-top:var(--space-xl)">典型扩展示例：消息持久化</p>
+    <p class="sub-heading" style="margin-top:var(--space-xl)">
+      <svg width="14" height="14" style="vertical-align:middle;margin-right:6px;color:var(--accent)"><use href="#ic-server"/></svg>
+      典型扩展示例：消息持久化
+    </p>
     <p class="body-sm mb-lg">
       继承 <span class="inline-code-sec">WebSocketServerHandler</span> 即可在消息处理前后
       添加自定义逻辑，如保存到数据库：
@@ -1416,7 +1609,10 @@ ws.<span class="kw">onclose</span> = () =&gt; console.log(<span class="str">"[DI
   }
 }</div>
 
-    <p class="sub-heading" style="margin-top:var(--space-xl)">完整可替换 Bean 清单</p>
+    <p class="sub-heading" style="margin-top:var(--space-xl)">
+      <svg width="14" height="14" style="vertical-align:middle;margin-right:6px;color:var(--accent)"><use href="#ic-box"/></svg>
+      完整可替换 Bean 清单
+    </p>
     <p class="body-sm">以下 Bean 均支持通过 <span class="inline-code-sec">@Component</span> 或 <span class="inline-code-sec">@Bean</span> 替换：</p>
     <div class="code-block" style="margin-top:var(--space-sm)"><span class="cm">// Bean 名称 — 默认实现类</span>
 <span class="sec">tokenAuthenticator</span>           DefaultTokenAuthenticator
@@ -1436,6 +1632,7 @@ ws.<span class="kw">onclose</span> = () =&gt; console.log(<span class="str">"[DI
   <!-- ============================ MESSAGING API ============================ -->
   <section class="section">
     <div class="section-header">
+      <svg width="14" height="14" style="flex-shrink:0;color:var(--text-disabled)"><use href="#ic-msg"/></svg>
       <span class="section-number">[06]</span>
       <span class="section-line"></span>
     </div>
@@ -1450,7 +1647,10 @@ ws.<span class="kw">onclose</span> = () =&gt; console.log(<span class="str">"[DI
       <span style="color:var(--accent)">内部 API</span>（无需 Token，服务端主动推送专用）。
     </p>
 
-    <p class="label" style="margin-bottom:var(--space-sm)">功能矩阵</p>
+    <p class="label" style="margin-bottom:var(--space-sm)">
+      <svg width="12" height="12" style="vertical-align:middle;margin-right:4px"><use href="#ic-features"/></svg>
+      功能矩阵
+    </p>
     <table class="ext-table" style="margin-bottom:var(--space-xl)">
       <thead>
         <tr>
@@ -1512,34 +1712,61 @@ ws.<span class="kw">onclose</span> = () =&gt; console.log(<span class="str">"[DI
       </tbody>
     </table>
 
-    <p class="label" style="margin-bottom:var(--space-sm)">安全 API 鉴权流程</p>
+    <p class="label" style="margin-bottom:var(--space-sm)">
+      <svg width="12" height="12" style="vertical-align:middle;margin-right:4px"><use href="#ic-shield"/></svg>
+      安全 API 鉴权流程
+    </p>
     <p class="pipeline-desc" style="margin-bottom:var(--space-md)">
       每次调用安全 API 时，<span class="inline-code-sec">validateSecurity()</span> 依次执行四步校验：
     </p>
     <div class="pipeline" style="margin-bottom:var(--space-xl)">
-      <span class="pipeline-node">Token 验证</span>
+      <span class="pipeline-node">
+        <svg width="10" height="10" style="vertical-align:middle;margin-right:3px"><use href="#ic-shield"/></svg>
+        Token 验证
+      </span>
       <span class="pipeline-arrow">&rarr;</span>
-      <span class="pipeline-node">身份认证</span>
+      <span class="pipeline-node">
+        <svg width="10" height="10" style="vertical-align:middle;margin-right:3px"><use href="#ic-shield"/></svg>
+        身份认证
+      </span>
       <span class="pipeline-arrow">&rarr;</span>
-      <span class="pipeline-node">在线检查</span>
+      <span class="pipeline-node">
+        <svg width="10" height="10" style="vertical-align:middle;margin-right:3px"><use href="#ic-link"/></svg>
+        在线检查
+      </span>
       <span class="pipeline-arrow">&rarr;</span>
-      <span class="pipeline-node">频率限制</span>
+      <span class="pipeline-node">
+        <svg width="10" height="10" style="vertical-align:middle;margin-right:3px"><use href="#ic-zap"/></svg>
+        频率限制
+      </span>
       <span class="pipeline-arrow">&rarr;</span>
-      <span class="pipeline-node">权限校验</span>
+      <span class="pipeline-node">
+        <svg width="10" height="10" style="vertical-align:middle;margin-right:3px"><use href="#ic-shield"/></svg>
+        权限校验
+      </span>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);margin-bottom:var(--space-xl)">
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:var(--space-md)">
-        <span class="caption" style="display:block;color:var(--success);margin-bottom:var(--space-xs)">安全 API</span>
+        <span class="caption" style="display:block;color:var(--success);margin-bottom:var(--space-xs)">
+        <svg width="12" height="12" style="vertical-align:middle;margin-right:4px;color:var(--success)"><use href="#ic-shield"/></svg>
+        安全 API
+      </span>
         <span class="body-sm">适用场景：用户触发的操作（前端调用 REST 接口发送消息）。需要管理员 Token 或发送者 Token，经过完整鉴权。</span>
       </div>
       <div style="background:var(--surface);border:1px solid var(--accent);border-radius:4px;padding:var(--space-md)">
-        <span class="caption" style="display:block;color:var(--accent);margin-bottom:var(--space-xs)">内部 API</span>
+        <span class="caption" style="display:block;color:var(--accent);margin-bottom:var(--space-xs)">
+        <svg width="12" height="12" style="vertical-align:middle;margin-right:4px;color:var(--accent)"><use href="#ic-zap"/></svg>
+        内部 API
+      </span>
         <span class="body-sm">适用场景：定时任务、事件驱动、微服务回调。无需 Token，跳过在线检查和频率限制，直接投递。</span>
       </div>
     </div>
 
-    <p class="label" style="margin-bottom:var(--space-sm)">安全 API 示例</p>
+    <p class="label" style="margin-bottom:var(--space-sm)">
+      <svg width="12" height="12" style="vertical-align:middle;margin-right:4px"><use href="#ic-code"/></svg>
+      安全 API 示例
+    </p>
     <div class="code-block" style="margin-bottom:var(--space-lg)"><span class="cm">// REST 控制器 — 需要管理员 Token</span>
 <span class="kw">@PostMapping</span>(<span class="str">"/system/send"</span>)
 <span class="kw">public</span> Result sendSystem(
@@ -1565,7 +1792,10 @@ messageService.sendSystemMessageToUsers(adminToken, userIds, content);
 messageService.sendSystemMessageAsync(adminToken, userId, content)
   .thenAccept(result -&gt; log.info(<span class="str">"[SENT] success={}"</span>, result.isSuccess()));</div>
 
-    <p class="label" style="margin-bottom:var(--space-sm)">内部 API 示例（服务端主动推送）</p>
+    <p class="label" style="margin-bottom:var(--space-sm)">
+      <svg width="12" height="12" style="vertical-align:middle;margin-right:4px"><use href="#ic-zap"/></svg>
+      内部 API 示例（服务端主动推送）
+    </p>
     <div class="code-block" style="margin-bottom:var(--space-lg)"><span class="cm">// 定时任务 — 每日早报推送</span>
 <span class="kw">@Scheduled</span>(cron = <span class="str">"0 0 9 * * ?"</span>)
 <span class="kw">public void</span> dailyReminder() {
@@ -1593,20 +1823,32 @@ messageService.sendSystemMessageToUsersInternal(
   <span class="str">"恭喜您获得 VIP 资格"</span>
 );</div>
 
-    <p class="label" style="margin-bottom:var(--space-sm)">返回值结构</p>
+    <p class="label" style="margin-bottom:var(--space-sm)">
+      <svg width="12" height="12" style="vertical-align:middle;margin-right:4px"><use href="#ic-box"/></svg>
+      返回值结构
+    </p>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-md)">
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:var(--space-md)">
-        <span class="caption" style="display:block;color:var(--text-display);margin-bottom:var(--space-xs)">SendResult</span>
+        <span class="caption" style="display:block;color:var(--text-display);margin-bottom:var(--space-xs)">
+          <svg width="12" height="12" style="vertical-align:middle;margin-right:4px;color:var(--success)"><use href="#ic-msg"/></svg>
+          SendResult
+        </span>
         <span class="body-sm" style="display:block;margin-bottom:var(--space-xs)"><span class="inline-code-sec">isSuccess()</span> 是否成功</span>
         <span class="body-sm"><span class="inline-code-sec">getErrorMessage()</span> 失败原因</span>
       </div>
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:var(--space-md)">
-        <span class="caption" style="display:block;color:var(--text-display);margin-bottom:var(--space-xs)">BroadcastResult</span>
+        <span class="caption" style="display:block;color:var(--text-display);margin-bottom:var(--space-xs)">
+          <svg width="12" height="12" style="vertical-align:middle;margin-right:4px;color:var(--accent)"><use href="#ic-zap"/></svg>
+          BroadcastResult
+        </span>
         <span class="body-sm" style="display:block;margin-bottom:var(--space-xs)"><span class="inline-code-sec">isSuccess()</span> 是否成功</span>
         <span class="body-sm"><span class="inline-code-sec">getSuccessCount()</span> 成功用户数</span>
       </div>
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:var(--space-md)">
-        <span class="caption" style="display:block;color:var(--text-display);margin-bottom:var(--space-xs)">BatchSendResult</span>
+        <span class="caption" style="display:block;color:var(--text-display);margin-bottom:var(--space-xs)">
+          <svg width="12" height="12" style="vertical-align:middle;margin-right:4px;color:var(--text-secondary)"><use href="#ic-box"/></svg>
+          BatchSendResult
+        </span>
         <span class="body-sm" style="display:block;margin-bottom:var(--space-xs)"><span class="inline-code-sec">getSuccessCount()</span> 成功数</span>
         <span class="body-sm" style="display:block;margin-bottom:var(--space-xs)"><span class="inline-code-sec">getFailedCount()</span> 失败数</span>
         <span class="body-sm"><span class="inline-code-sec">getOfflineCount()</span> 离线数</span>
@@ -1621,8 +1863,14 @@ messageService.sendSystemMessageToUsersInternal(
       <span class="caption">Apache 2.0 &middot; Java 8+ &middot; Spring Boot 2.6.11 &middot; Netty 4.2.7</span>
     </div>
     <div class="flex gap-md" style="gap:var(--space-md)">
-      <a href="https://github.com/hahaha-zsq/winter-netty-spring-boot-starter" target="_blank">GitHub</a>
-      <a href="https://central.sonatype.com/artifact/io.github.hahaha-zsq/winter-netty-spring-boot-starter" target="_blank">Maven 中央仓库</a>
+      <a href="https://github.com/hahaha-zsq/winter-netty-spring-boot-starter" target="_blank">
+        <svg width="12" height="12" style="vertical-align:middle;margin-right:4px"><use href="#ic-github"/></svg>
+        GitHub
+      </a>
+      <a href="https://central.sonatype.com/artifact/io.github.hahaha-zsq/winter-netty-spring-boot-starter" target="_blank">
+        <svg width="12" height="12" style="vertical-align:middle;margin-right:4px"><use href="#ic-maven"/></svg>
+        Maven 中央仓库
+      </a>
     </div>
   </footer>
 </body>
